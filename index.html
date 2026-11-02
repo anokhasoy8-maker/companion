@@ -162,7 +162,9 @@
     <button id="send" type="submit">Send</button>
   </form>
 
-<script>
+<script type="module">
+  import { Capacitor, registerPlugin } from "@capacitor/core";
+
   // ---------- Settings: change these ----------
   const COMPANION_NAME = "Companion";
   const GREETING = "Hi, I’m here. What’s on your mind?";
@@ -181,12 +183,17 @@
   const avatar = document.getElementById("avatar");
   const statusEl = document.getElementById("status");
   document.getElementById("name").textContent = COMPANION_NAME;
+  window.addEventListener("error", function (ev) { statusEl.textContent = "Error: " + (ev.message || "unknown"); });
 
   // Native plugins (only exist inside the installed Android app)
-  const Cap = window.Capacitor;
-  const isNative = !!(Cap && Cap.isNativePlatform && Cap.isNativePlatform());
-  const SR = isNative ? Cap.registerPlugin("SpeechRecognition") : null;
-  const TTS = isNative ? Cap.registerPlugin("TextToSpeech") : null;
+  let SR = null;
+  let TTS = null;
+  try {
+    if (Capacitor.isNativePlatform()) {
+      SR = registerPlugin("SpeechRecognition");
+      TTS = registerPlugin("TextToSpeech");
+    }
+  } catch (e) { SR = null; TTS = null; }
 
   let messages = [];
   let muted = false;
