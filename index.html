@@ -127,7 +127,6 @@
   const COMPANION_NAME = "Companion";
   const GREETING = "Hi, I’m here. What’s on your mind?";
   const STORAGE_KEY = "companion_chat_v1";
-  const WORKER_URL = "https://companion-api.anokhasoy8.workers.dev";
   // --------------------------------------------
 
   const list = document.getElementById("list");
@@ -165,17 +164,11 @@
     bubble(role, text);
   }
 
-  // Sends the recent history to your Cloudflare Worker and returns the reply text.
+  // STEP 4: replace this function with a call to your AI (through your proxy).
+  // It receives the full history and must return the reply text.
   async function getReply(history) {
-    const recent = history.slice(-20).map(function (m) { return { role: m.role, text: m.text }; });
-    const res = await fetch(WORKER_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages: recent })
-    });
-    const data = await res.json();
-    if (!res.ok || !data.reply) throw new Error(data.error || "No reply");
-    return data.reply;
+    await new Promise(function (r) { setTimeout(r, 900); });
+    return "I’m not connected to an AI yet, but I got your message. Step 4 gives me a real voice.";
   }
 
   async function handleSend(text) {
