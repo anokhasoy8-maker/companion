@@ -200,6 +200,24 @@
     padding: 12px;
   }
 
+  #stage {
+    position: relative;
+    flex: none;
+    height: min(34vh, 232px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 45%, rgba(143, 162, 255, .16), transparent 62%), var(--ink);
+  }
+  #stage[hidden] { display: none; }
+  #face { height: 100%; width: auto; max-width: 100%; display: block; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .stagebtn { position: absolute; top: 8px; height: 32px; font-size: 13px; padding: 0 12px; background: rgba(35, 44, 82, .9); }
+  #lookBtn { left: 12px; }
+  #stageHide { right: 12px; }
+  body.stage-on #avatar { display: none; }
+  #avatar { cursor: pointer; }
+  @media (max-height: 640px) { #stage { display: none; } body.stage-on #avatar { display: block; } }
+
   @media (prefers-reduced-motion: reduce) {
     #avatar.thinking, #avatar.speaking, #mic.on { animation: none; }
     main { scroll-behavior: auto; }
@@ -220,6 +238,48 @@
     </button>
     <button id="muteBtn" class="hbtn" type="button" aria-label="Mute or unmute her voice"></button>
   </header>
+
+  <div id="stage" hidden>
+    <svg id="face" viewBox="0 0 200 220" role="img" aria-label="Your companion. Tap to change her look.">
+      <defs>
+        <radialGradient id="bgGrad" cx="50%" cy="40%" r="62%">
+          <stop id="bgA" offset="0" stop-color="#3a3f7a"/>
+          <stop id="bgB" offset="1" stop-color="#1b2340"/>
+        </radialGradient>
+        <clipPath id="clipRound"><circle cx="100" cy="112" r="104"/></clipPath>
+      </defs>
+      <circle cx="100" cy="112" r="104" fill="url(#bgGrad)"/>
+      <g clip-path="url(#clipRound)">
+        <g id="figure">
+          <path id="hairBack" d="M44 100 C34 40 68 14 100 14 C132 14 166 40 156 100 C164 152 154 198 146 226 L54 226 C46 198 36 152 44 100 Z"/>
+          <path id="outfit" d="M26 226 C30 184 62 166 100 166 C138 166 170 184 174 226 Z"/>
+          <rect id="neck" x="88" y="138" width="24" height="34" rx="10"/>
+          <g id="head">
+            <ellipse id="skin" cx="100" cy="98" rx="50" ry="56"/>
+            <path id="hairFront" d="M50 94 C42 48 72 28 100 28 C128 28 158 48 150 94 C142 76 128 62 108 56 C96 72 72 84 50 94 Z"/>
+            <circle id="cheekL" cx="68" cy="114" r="9" fill="#ff7a9c" opacity=".3"/>
+            <circle id="cheekR" cx="132" cy="114" r="9" fill="#ff7a9c" opacity=".3"/>
+            <path id="browL" d="M63 82 Q76 75 89 80" fill="none" stroke-width="3.5" stroke-linecap="round"/>
+            <path id="browR" d="M111 80 Q124 75 137 82" fill="none" stroke-width="3.5" stroke-linecap="round"/>
+            <g id="eyeL">
+              <ellipse cx="76" cy="97" rx="9.5" ry="10.5" fill="#fff"/>
+              <circle id="pupilL" cx="76" cy="98" r="6.2" fill="#2a1d2e"/>
+              <circle cx="78.6" cy="94.6" r="2.1" fill="#fff"/>
+            </g>
+            <g id="eyeR">
+              <ellipse cx="124" cy="97" rx="9.5" ry="10.5" fill="#fff"/>
+              <circle id="pupilR" cx="124" cy="98" r="6.2" fill="#2a1d2e"/>
+              <circle cx="126.6" cy="94.6" r="2.1" fill="#fff"/>
+            </g>
+            <path d="M98 108 Q100 114 103 111" fill="none" stroke="rgba(60,20,30,.28)" stroke-width="2" stroke-linecap="round"/>
+            <path id="mouth" fill="#7a2a3c" stroke="#7a2a3c" stroke-width="2" stroke-linejoin="round"/>
+          </g>
+        </g>
+      </g>
+    </svg>
+    <button id="lookBtn" class="hbtn stagebtn" type="button" aria-label="Change her look">Look</button>
+    <button id="stageHide" class="hbtn stagebtn" type="button" aria-label="Hide the avatar">Hide</button>
+  </div>
 
   <main id="list" aria-live="polite"></main>
 
@@ -454,17 +514,212 @@
     } catch (e) { voiceIdx = []; }
   }
 
+  // ---------- Animated avatar ----------
+  const LOOKS = [
+    { name: "Sunset", skin: "#f6d3bd", hair: "#3b2233", outfit: "#f08aa6", bgA: "#4a3a7e", bgB: "#1b2340" },
+    { name: "Ocean",  skin: "#ebc4a4", hair: "#1f2b49", outfit: "#5b8def", bgA: "#2f5a8a", bgB: "#18223f" },
+    { name: "Forest", skin: "#cf9f7e", hair: "#2a1a13", outfit: "#4fb48a", bgA: "#2f6b5c", bgB: "#16263a" },
+    { name: "Berry",  skin: "#f3d6c6", hair: "#6c2c52", outfit: "#a35be8", bgA: "#6a3a8e", bgB: "#1d1f45" },
+    { name: "Golden", skin: "#b9825c", hair: "#16110f", outfit: "#f0b44a", bgA: "#8a6a2f", bgB: "#241f33" }
+  ];
+
+  const Face = (function () {
+    const ids = ["figure", "eyeL", "eyeR", "pupilL", "pupilR", "browL", "browR", "mouth", "cheekL", "cheekR",
+      "skin", "neck", "hairBack", "hairFront", "outfit", "bgA", "bgB"];
+    const el = {};
+    ids.forEach(function (id) { el[id] = document.getElementById(id); });
+    const stage = document.getElementById("stage");
+    const faceSvg = document.getElementById("face");
+    const lookBtn = document.getElementById("lookBtn");
+    const hideBtn = document.getElementById("stageHide");
+    const calm = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+    let state = "idle";
+    let talking = false, talkStart = 0, visemes = [], visTotal = 1, visIdx = 0;
+    let lastElapsed = 0;
+    const cur = { open: 0, smile: 0.4, browL: 0, browR: 0, tilt: 0, gx: 0, gy: 0, bob: 0 };
+    let nextBlink = 1400, blinkStart = -1;
+    let nextGlance = 2500, glanceX = 0, glanceY = 0;
+    let smileBoost = 0;
+    let raf = 0, lastTs = 0;
+    let lookIdx = 0;
+
+    function buildVisemes(text) {
+      const out = [];
+      const s = String(text).replace(/\s+/g, " ").slice(0, 700);
+      let total = 0;
+      for (let i = 0; i < s.length; i++) {
+        const c = s[i].toLowerCase();
+        let o = 0.3, ms = 62;
+        if (c === "a") o = 0.95;
+        else if (c === "o") o = 0.8;
+        else if (c === "e") o = 0.6;
+        else if (c === "u") o = 0.6;
+        else if (c === "i") o = 0.45;
+        else if (c === "b" || c === "m" || c === "p") o = 0.04;
+        else if (c === " ") { o = 0.12; ms = 40; }
+        else if (c === "." || c === "!" || c === "?") { o = 0; ms = 280; }
+        else if (c === "," || c === ";" || c === ":") { o = 0; ms = 140; }
+        else if (/[0-9]/.test(c)) o = 0.45;
+        else if (c.charCodeAt(0) > 127) { o = 0.25 + (c.charCodeAt(0) % 5) * 0.1; ms = 70; }
+        total += ms;
+        out.push({ o: o, end: total });
+      }
+      visTotal = Math.max(total, 1);
+      return out;
+    }
+
+    function mouthPath(open, smile) {
+      const cx = 100, cy = 128;
+      const w = 13 + smile * 3 + open * 1.5;
+      const cornerY = cy - smile * 4 + open * 1;
+      const upperY = cy - 2 - smile - open * 3;
+      const lowerY = cy + 3 + open * 17 + Math.max(smile, 0) * 4;
+      return "M" + (cx - w).toFixed(1) + " " + cornerY.toFixed(1) +
+        " Q" + cx + " " + upperY.toFixed(1) + " " + (cx + w).toFixed(1) + " " + cornerY.toFixed(1) +
+        " Q" + cx + " " + lowerY.toFixed(1) + " " + (cx - w).toFixed(1) + " " + cornerY.toFixed(1) + " Z";
+    }
+
+    function applyLook() {
+      const L = LOOKS[lookIdx % LOOKS.length];
+      el.skin.setAttribute("fill", L.skin);
+      el.neck.setAttribute("fill", L.skin);
+      el.hairBack.setAttribute("fill", L.hair);
+      el.hairFront.setAttribute("fill", L.hair);
+      el.outfit.setAttribute("fill", L.outfit);
+      el.browL.setAttribute("stroke", L.hair);
+      el.browR.setAttribute("stroke", L.hair);
+      el.bgA.setAttribute("stop-color", L.bgA);
+      el.bgB.setAttribute("stop-color", L.bgB);
+    }
+
+    function nextLook() {
+      lookIdx = (lookIdx + 1) % LOOKS.length;
+      lsSet("companion_look", String(lookIdx));
+      applyLook();
+      smileBoost = 1;
+      blinkStart = performance.now();
+      setStatus("Look: " + LOOKS[lookIdx].name, 1500);
+    }
+
+    function targets(t) {
+      // returns the pose this state is aiming for
+      const g = { smile: 0.45, browL: 0, browR: 0, tilt: 0, gx: glanceX, gy: glanceY };
+      if (state === "listening") {
+        g.smile = 0.25; g.browL = -4; g.browR = -4; g.tilt = calm ? 0 : -5; g.gx = 0; g.gy = 0;
+      } else if (state === "thinking") {
+        g.smile = -0.05; g.browL = -5; g.browR = -1; g.gx = 4; g.gy = -4; g.tilt = calm ? 0 : 3;
+      } else if (state === "speaking") {
+        g.smile = 0.35; g.browL = -1; g.browR = -1; g.gx = 0; g.gy = 0;
+        g.tilt = calm ? 0 : Math.sin(t * 3.1) * 1.6;
+      } else {
+        g.tilt = calm ? 0 : Math.sin(t * 0.7) * 1.2;
+      }
+      g.smile += smileBoost * 0.5;
+      return g;
+    }
+
+    function frame(ts) {
+      raf = requestAnimationFrame(frame);
+      const dt = Math.min((ts - (lastTs || ts)) / 1000, 0.1);
+      lastTs = ts;
+      const t = ts / 1000;
+      const kFast = 1 - Math.exp(-dt * 24);
+      const kSoft = 1 - Math.exp(-dt * 8);
+
+      // glances while idle
+      if (ts > nextGlance) {
+        nextGlance = ts + 2000 + Math.random() * 3000;
+        glanceX = state === "idle" ? (Math.random() * 6 - 3) : 0;
+        glanceY = state === "idle" ? (Math.random() * 3 - 1.5) : 0;
+      }
+      // blinking
+      if (blinkStart < 0 && ts > nextBlink) { blinkStart = ts; nextBlink = ts + 2200 + Math.random() * 3300; }
+      let eyeScale = 1;
+      if (blinkStart >= 0) {
+        const p = (ts - blinkStart) / 150;
+        if (p >= 1) blinkStart = -1; else eyeScale = 1 - 0.92 * Math.sin(Math.PI * p);
+      }
+
+      // mouth opening from the words being spoken
+      let openT = 0;
+      if (talking && visemes.length) {
+        const elapsed = (performance.now() - talkStart) % (visTotal + 300);
+        if (elapsed < lastElapsed) visIdx = 0;
+        lastElapsed = elapsed;
+        while (visIdx < visemes.length - 1 && visemes[visIdx].end < elapsed) visIdx++;
+        openT = elapsed > visTotal ? 0 : visemes[visIdx].o;
+      }
+      cur.open += (openT - cur.open) * kFast;
+
+      const g = targets(t);
+      smileBoost *= Math.exp(-dt * 1.6);
+      cur.smile += (g.smile - cur.smile) * kSoft;
+      cur.browL += (g.browL - cur.browL) * kSoft;
+      cur.browR += (g.browR - cur.browR) * kSoft;
+      cur.tilt += (g.tilt - cur.tilt) * kSoft;
+      cur.gx += (g.gx - cur.gx) * kSoft;
+      cur.gy += (g.gy - cur.gy) * kSoft;
+      const bobT = calm ? 0 : Math.sin(t * 1.5) * 1.2 + (talking ? cur.open * 1.2 : 0);
+      cur.bob += (bobT - cur.bob) * kSoft;
+
+      el.mouth.setAttribute("d", mouthPath(cur.open, cur.smile));
+      el.figure.setAttribute("transform", "translate(0 " + cur.bob.toFixed(2) + ") rotate(" + cur.tilt.toFixed(2) + " 100 150)");
+      el.eyeL.style.transform = "scaleY(" + eyeScale.toFixed(3) + ")";
+      el.eyeR.style.transform = "scaleY(" + eyeScale.toFixed(3) + ")";
+      el.pupilL.setAttribute("transform", "translate(" + cur.gx.toFixed(2) + " " + cur.gy.toFixed(2) + ")");
+      el.pupilR.setAttribute("transform", "translate(" + cur.gx.toFixed(2) + " " + cur.gy.toFixed(2) + ")");
+      el.browL.setAttribute("transform", "translate(0 " + cur.browL.toFixed(2) + ")");
+      el.browR.setAttribute("transform", "translate(0 " + cur.browR.toFixed(2) + ")");
+      const blush = 0.28 + Math.max(cur.smile, 0) * 0.25;
+      el.cheekL.setAttribute("opacity", blush.toFixed(2));
+      el.cheekR.setAttribute("opacity", blush.toFixed(2));
+    }
+
+    function start() { if (!raf) { lastTs = 0; raf = requestAnimationFrame(frame); } }
+    function stop() { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
+
+    function showStage(on) {
+      stage.hidden = !on;
+      document.body.classList.toggle("stage-on", on);
+      lsSet("companion_stage", on ? "1" : "0");
+    }
+
+    return {
+      init: function () {
+        el.eyeL.style.transformBox = "fill-box"; el.eyeL.style.transformOrigin = "center";
+        el.eyeR.style.transformBox = "fill-box"; el.eyeR.style.transformOrigin = "center";
+        lookIdx = parseInt(lsGet("companion_look") || "0", 10) || 0;
+        applyLook();
+        showStage(lsGet("companion_stage") !== "0");
+        faceSvg.addEventListener("click", nextLook);
+        lookBtn.addEventListener("click", nextLook);
+        hideBtn.addEventListener("click", function () { showStage(false); });
+        avatar.addEventListener("click", function () { showStage(true); });
+        document.addEventListener("visibilitychange", function () { if (document.hidden) stop(); else start(); });
+        start();
+      },
+      setState: function (s) { state = s; if (s !== "speaking") talking = false; },
+      speak: function (text) { visemes = buildVisemes(text); visIdx = 0; lastElapsed = 0; talkStart = performance.now(); talking = true; state = "speaking"; },
+      stopTalking: function () { talking = false; if (state === "speaking") state = "idle"; },
+      endListening: function () { if (state === "listening") state = "idle"; },
+      endThinking: function () { if (state === "thinking") state = "idle"; }
+    };
+  })();
+
   async function stopSpeaking() {
     try {
       if (TTS) await TTS.stop();
       else if (window.speechSynthesis) window.speechSynthesis.cancel();
     } catch (e) {}
     avatar.classList.remove("speaking");
+    Face.stopTalking();
   }
 
   async function say(text, force) {
     if (muted && !force) return;
     avatar.classList.add("speaking");
+    Face.speak(text);
     try {
       if (TTS) {
         const opts = { text: text, lang: SPEECH_LANG, rate: 1.0, pitch: 1.1, volume: 1.0 };
@@ -482,6 +737,7 @@
       /* speech failed: ignore, the text is still on screen */
     } finally {
       avatar.classList.remove("speaking");
+      Face.stopTalking();
     }
   }
 
@@ -516,6 +772,7 @@
       if (perm.speechRecognition !== "granted") { setStatus("Microphone permission needed", 3000); return; }
       listening = true;
       micBtn.classList.add("on");
+      Face.setState("listening");
       setStatus("Listening…");
       const r = await SR.start({ language: SPEECH_LANG, maxResults: 1, partialResults: false, popup: false });
       const text = r && r.matches && r.matches[0];
@@ -528,6 +785,7 @@
     } finally {
       listening = false;
       micBtn.classList.remove("on");
+      Face.endListening();
     }
   }
   micBtn.addEventListener("click", toggleMic);
@@ -553,6 +811,7 @@
     add("me", text);
     sendBtn.disabled = true;
     avatar.classList.add("thinking");
+    Face.setState("thinking");
     setStatus("Typing…");
     const typing = bubble("ai", "…", "typing");
     let reply = null;
@@ -565,6 +824,7 @@
       bubble("ai", "I couldn’t reach the AI. Check your connection and try again.");
     } finally {
       avatar.classList.remove("thinking");
+      Face.endThinking();
       setStatus("Online");
       sendBtn.disabled = false;
     }
@@ -586,6 +846,7 @@
   paintMute();
   paintMemCount();
   loadVoices();
+  Face.init();
   if (messages.length === 0) {
     messages.push({ role: "ai", text: GREETING, t: Date.now() });
     save();
