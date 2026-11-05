@@ -216,6 +216,13 @@
   #stageHide { right: 12px; }
   body.stage-on #avatar { display: none; }
   #avatar { cursor: pointer; }
+  #stage3d { position: absolute; inset: 0; }
+  #stage3d[hidden] { display: none; }
+  #stage3d canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+  #modeBtn { top: auto; bottom: 8px; right: 12px; }
+  #credit { position: absolute; left: 12px; bottom: 10px; font-size: 11px; color: var(--muted); pointer-events: none; }
+  #credit[hidden] { display: none; }
+  body.mode-3d #stage { height: min(32vh, 250px); }
   @media (max-height: 640px) { #stage { display: none; } body.stage-on #avatar { display: block; } }
 
   @media (prefers-reduced-motion: reduce) {
@@ -277,6 +284,9 @@
         </g>
       </g>
     </svg>
+    <div id="stage3d" hidden></div>
+    <div id="credit" hidden>Avatar “Aura” by Mrhunt394 YT</div>
+    <button id="modeBtn" class="hbtn stagebtn" type="button" aria-label="Switch between 3D and 2D avatar">3D</button>
     <button id="lookBtn" class="hbtn stagebtn" type="button" aria-label="Change her look">Look</button>
     <button id="stageHide" class="hbtn stagebtn" type="button" aria-label="Hide the avatar">Hide</button>
   </div>
@@ -523,7 +533,7 @@
     { name: "Golden", skin: "#b9825c", hair: "#16110f", outfit: "#f0b44a", bgA: "#8a6a2f", bgB: "#241f33" }
   ];
 
-  const Face = (function () {
+  const Face2D = (function () {
     const ids = ["figure", "eyeL", "eyeR", "pupilL", "pupilR", "browL", "browR", "mouth", "cheekL", "cheekR",
       "skin", "neck", "hairBack", "hairFront", "outfit", "bgA", "bgB"];
     const el = {};
@@ -683,6 +693,7 @@
       stage.hidden = !on;
       document.body.classList.toggle("stage-on", on);
       lsSet("companion_stage", on ? "1" : "0");
+      Face.applyRun();
     }
 
     return {
@@ -696,14 +707,303 @@
         lookBtn.addEventListener("click", nextLook);
         hideBtn.addEventListener("click", function () { showStage(false); });
         avatar.addEventListener("click", function () { showStage(true); });
-        document.addEventListener("visibilitychange", function () { if (document.hidden) stop(); else start(); });
-        start();
+      },
+      run: function (on) { if (on) start(); else stop(); },
+      setState: function (s) { state = s; if (s !== "speaking") talking = false; },
+      speak: function (text) { visemes = buildVisemes(text); visIdx = 0; lastElapsed = 0; talkStart = performance.now(); talking = true; state = "speaking"; },
+      stopTalking: function () { talking = false; if (state === "speaking") state = "idle"; },
+      endListening: function () { if (state === "listening") state = "idle"; },
+      endThinking: function () { if (state === "thinking") state = "idle"; }
+    };
+  })();
+
+  // ---------- 3D avatar (VRM model) ----------
+  const AVATAR_URL = "avatar.vrm";
+  // How she looks in each mood (0 to 1). Change these numbers to taste.
+  const EXPR_BASE = {
+    idle:      { relaxed: 0.25 },
+    listening: { surprised: 0.12, Surprised: 0.12 },
+    thinking:  { sad: 0.10 },
+    speaking:  { relaxed: 0.20 }
+  };
+  const EXPR_ALL = ["aa", "ih", "ou", "ee", "oh", "blink", "relaxed", "happy", "sad", "surprised", "Surprised"];
+  const VOWEL_KEYS = ["aa", "ee", "ih", "oh", "ou"];
+
+  const Face3D = (function () {
+    const host = document.getElementById("stage3d");
+    const calm = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    let ready = false, loading = null;
+    let THREE = null, renderer = null, scene = null, camera = null, vrm = null, lookTarget = null;
+    let headBone = null, neckBone = null, chestBone = null;
+    let headY = 1.45;
+    let state = "idle";
+    let talking = false, talkStart = 0, visemes = [], visTotal = 1, visIdx = 0, lastElapsed = 0;
+    const cur = {};
+    EXPR_ALL.forEach(function (n) { cur[n] = 0; });
+    const pose = { tilt: 0, nod: 0, turn: 0, gx: 0, gy: 0 };
+    let nextBlink = 1500, blinkStart = -1;
+    let nextGlance = 2500, glanceX = 0, glanceY = 0;
+    let raf = 0, last = 0;
+    let api = null;
+
+    function buildVisemes(text) {
+      const out = [];
+      const s = String(text).replace(/\s+/g, " ").slice(0, 700);
+      let total = 0;
+      for (let i = 0; i < s.length; i++) {
+        const c = s[i].toLowerCase();
+        let k = "aa", o = 0.28, ms = 64;
+        if (c === "a") { k = "aa"; o = 0.85; }
+        else if (c === "e") { k = "ee"; o = 0.70; }
+        else if (c === "i") { k = "ih"; o = 0.70; }
+        else if (c === "o") { k = "oh"; o = 0.80; }
+        else if (c === "u") { k = "ou"; o = 0.75; }
+        else if (c === "b" || c === "m" || c === "p") { k = null; o = 0; }
+        else if (c === " ") { k = null; o = 0; ms = 40; }
+        else if (c === "." || c === "!" || c === "?") { k = null; o = 0; ms = 280; }
+        else if (c === "," || c === ";" || c === ":") { k = null; o = 0; ms = 140; }
+        else if (/[0-9]/.test(c)) { k = "oh"; o = 0.4; }
+        else if (c.charCodeAt(0) > 127) { k = VOWEL_KEYS[c.charCodeAt(0) % 5]; o = 0.6; ms = 70; }
+        total += ms;
+        out.push({ k: k, o: o, end: total });
+      }
+      visTotal = Math.max(total, 1);
+      return out;
+    }
+
+    function bone(name) { return vrm && vrm.humanoid ? vrm.humanoid.getNormalizedBoneNode(name) : null; }
+
+    function poseArms() {
+      const lU = bone("leftUpperArm"), rU = bone("rightUpperArm"), lH = bone("leftHand");
+      if (!lU || !rU) return;
+      const a = 1.2;
+      lU.rotation.z = -a;
+      rU.rotation.z = a;
+      vrm.scene.updateMatrixWorld(true);
+      if (lH) {
+        const hp = new THREE.Vector3(), sp = new THREE.Vector3();
+        lH.getWorldPosition(hp);
+        lU.getWorldPosition(sp);
+        // if the hand ended up higher than the shoulder, the arms went the wrong way: flip them
+        if (hp.y > sp.y - 0.05) { lU.rotation.z = a; rU.rotation.z = -a; }
+      }
+    }
+
+    function setExpr(name, v) {
+      const em = vrm && vrm.expressionManager;
+      if (em) em.setValue(name, v);
+    }
+
+    function frame(ts) {
+      raf = requestAnimationFrame(frame);
+      if (ts - last < 32) return; // about 30 frames per second
+      const dt = Math.min((ts - (last || ts)) / 1000, 0.1);
+      last = ts;
+      const t = ts / 1000;
+      const kFast = 1 - Math.exp(-dt * 22);
+      const kSoft = 1 - Math.exp(-dt * 7);
+
+      // vowel shapes for the words being spoken
+      const tv = {};
+      if (talking && visemes.length) {
+        const elapsed = (performance.now() - talkStart) % (visTotal + 300);
+        if (elapsed < lastElapsed) visIdx = 0;
+        lastElapsed = elapsed;
+        while (visIdx < visemes.length - 1 && visemes[visIdx].end < elapsed) visIdx++;
+        const v = visemes[visIdx];
+        if (elapsed <= visTotal && v && v.k) tv[v.k] = v.o;
+      }
+
+      // blinking
+      if (blinkStart < 0 && ts > nextBlink) { blinkStart = ts; nextBlink = ts + 2200 + Math.random() * 3300; }
+      let blink = 0;
+      if (blinkStart >= 0) {
+        const p = (ts - blinkStart) / 170;
+        if (p >= 1) blinkStart = -1; else blink = Math.sin(Math.PI * p);
+      }
+
+      // expressions
+      const base = EXPR_BASE[state] || EXPR_BASE.idle;
+      EXPR_ALL.forEach(function (n) {
+        let target = 0;
+        if (n === "blink") { cur.blink = blink; setExpr("blink", blink); return; }
+        if (VOWEL_KEYS.indexOf(n) >= 0) target = tv[n] || 0;
+        else target = base[n] || 0;
+        const k = VOWEL_KEYS.indexOf(n) >= 0 ? kFast : kSoft;
+        cur[n] += (target - cur[n]) * k;
+        setExpr(n, cur[n]);
+      });
+
+      // head and body movement
+      let tilt = 0, nod = 0, turn = 0, gx = 0, gy = 0;
+      if (state === "listening") { tilt = -0.07; nod = -0.02; }
+      else if (state === "thinking") { nod = -0.09; turn = 0.16; tilt = 0.04; gx = -0.3; gy = 0.25; }
+      else if (state === "speaking") { nod = Math.sin(t * 3.0) * 0.025 + cur.aa * 0.03; tilt = Math.sin(t * 1.7) * 0.02; }
+      else {
+        tilt = Math.sin(t * 0.7) * 0.03; nod = Math.sin(t * 0.5) * 0.015;
+        if (ts > nextGlance) { nextGlance = ts + 2000 + Math.random() * 3000; glanceX = Math.random() * 0.3 - 0.15; glanceY = Math.random() * 0.1 - 0.05; }
+        gx = glanceX; gy = glanceY;
+      }
+      if (calm) { tilt *= 0.3; nod *= 0.3; }
+      pose.tilt += (tilt - pose.tilt) * kSoft;
+      pose.nod += (nod - pose.nod) * kSoft;
+      pose.turn += (turn - pose.turn) * kSoft;
+      pose.gx += (gx - pose.gx) * kSoft;
+      pose.gy += (gy - pose.gy) * kSoft;
+      if (headBone) headBone.rotation.set(pose.nod, pose.turn, pose.tilt);
+      if (neckBone) neckBone.rotation.set(pose.nod * 0.4, pose.turn * 0.4, pose.tilt * 0.4);
+      if (chestBone && !calm) chestBone.rotation.set(Math.sin(t * 1.5) * 0.012, 0, 0);
+      if (lookTarget) lookTarget.position.set(pose.gx, headY + pose.gy, 1.2);
+
+      vrm.update(dt);
+      renderer.render(scene, camera);
+    }
+
+    function resize() {
+      if (!renderer || !camera) return;
+      const w = host.clientWidth || 300, h = host.clientHeight || 200;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+
+    async function doLoad() {
+      THREE = await import("three");
+      const loaderMod = await import("three/addons/loaders/GLTFLoader.js");
+      const vrmMod = await import("@pixiv/three-vrm");
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      renderer.setClearColor(0x000000, 0);
+      host.appendChild(renderer.domElement);
+      renderer.domElement.addEventListener("webglcontextlost", function (e) {
+        e.preventDefault();
+        if (api && api.onLost) api.onLost();
+      });
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(30, 1, 0.05, 20);
+      const key = new THREE.DirectionalLight(0xffffff, Math.PI);
+      key.position.set(0.6, 1.0, 1.2);
+      scene.add(key);
+      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+      lookTarget = new THREE.Object3D();
+      scene.add(lookTarget);
+
+      const loader = new loaderMod.GLTFLoader();
+      loader.register(function (parser) { return new vrmMod.VRMLoaderPlugin(parser); });
+      const gltf = await new Promise(function (resolve, reject) {
+        loader.load(AVATAR_URL, resolve, function (pr) {
+          if (pr && pr.total) setStatus("Loading Aura… " + Math.round(100 * pr.loaded / pr.total) + "%");
+        }, reject);
+      });
+      vrm = gltf.userData && gltf.userData.vrm;
+      if (!vrm) throw new Error("avatar.vrm is not a VRM file");
+      const U = vrmMod.VRMUtils;
+      if (U && U.rotateVRM0) U.rotateVRM0(vrm);
+      if (U && U.combineSkeletons) { try { U.combineSkeletons(vrm.scene); } catch (e) { /* optional */ } }
+      vrm.scene.traverse(function (o) { o.frustumCulled = false; });
+      scene.add(vrm.scene);
+
+      headBone = bone("head");
+      neckBone = bone("neck");
+      chestBone = bone("chest") || bone("spine");
+      poseArms();
+      vrm.scene.updateMatrixWorld(true);
+      if (headBone) {
+        const hp = new THREE.Vector3();
+        headBone.getWorldPosition(hp);
+        headY = hp.y;
+      }
+      const cy = headY + 0.03;
+      camera.position.set(0, cy, 1.0);
+      camera.lookAt(0, cy, 0);
+      if (vrm.lookAt) vrm.lookAt.target = lookTarget;
+
+      resize();
+      if (window.ResizeObserver) new ResizeObserver(resize).observe(host);
+      ready = true;
+    }
+
+    api = {
+      onLost: null,
+      isReady: function () { return ready; },
+      load: function () {
+        if (ready) return Promise.resolve();
+        if (!loading) loading = doLoad().catch(function (e) { loading = null; throw e; });
+        return loading;
+      },
+      run: function (on) {
+        if (on && ready && !raf) { last = 0; raf = requestAnimationFrame(frame); }
+        else if (!on && raf) { cancelAnimationFrame(raf); raf = 0; }
       },
       setState: function (s) { state = s; if (s !== "speaking") talking = false; },
       speak: function (text) { visemes = buildVisemes(text); visIdx = 0; lastElapsed = 0; talkStart = performance.now(); talking = true; state = "speaking"; },
       stopTalking: function () { talking = false; if (state === "speaking") state = "idle"; },
       endListening: function () { if (state === "listening") state = "idle"; },
       endThinking: function () { if (state === "thinking") state = "idle"; }
+    };
+    return api;
+  })();
+
+  // ---------- Avatar switcher: 3D Aura by default, 2D face as a fallback ----------
+  const Face = (function () {
+    const stageEl = document.getElementById("stage");
+    const faceSvg = document.getElementById("face");
+    const stage3d = document.getElementById("stage3d");
+    const lookBtn = document.getElementById("lookBtn");
+    const modeBtn = document.getElementById("modeBtn");
+    const credit = document.getElementById("credit");
+    let mode = "2d";
+
+    function applyRun() {
+      const vis = !stageEl.hidden && !document.hidden;
+      Face2D.run(vis && mode === "2d");
+      Face3D.run(vis && mode === "3d");
+    }
+
+    function paint() {
+      const is3 = mode === "3d";
+      faceSvg.style.display = is3 ? "none" : "";
+      stage3d.hidden = !is3;
+      credit.hidden = !is3;
+      lookBtn.style.display = is3 ? "none" : "";
+      modeBtn.textContent = is3 ? "2D" : "3D";
+      document.body.classList.toggle("mode-3d", is3);
+    }
+
+    async function setMode(m, remember) {
+      if (m === "3d") {
+        try {
+          setStatus("Loading Aura…");
+          await Face3D.load();
+          setStatus("Online");
+        } catch (e) {
+          console.error(e);
+          setStatus("3D not available: " + (e && e.message ? e.message : String(e)), 7000);
+          m = "2d";
+        }
+      }
+      mode = m;
+      if (remember) lsSet("companion_avatar", m);
+      paint();
+      applyRun();
+    }
+
+    return {
+      applyRun: applyRun,
+      init: function () {
+        Face2D.init();
+        Face3D.onLost = function () { setStatus("3D stopped, using the 2D face", 5000); setMode("2d", false); };
+        modeBtn.addEventListener("click", function () { setMode(mode === "3d" ? "2d" : "3d", true); });
+        document.addEventListener("visibilitychange", applyRun);
+        setMode(lsGet("companion_avatar") === "2d" ? "2d" : "3d", false);
+      },
+      setState: function (s) { Face2D.setState(s); Face3D.setState(s); },
+      speak: function (t) { Face2D.speak(t); Face3D.speak(t); },
+      stopTalking: function () { Face2D.stopTalking(); Face3D.stopTalking(); },
+      endListening: function () { Face2D.endListening(); Face3D.endListening(); },
+      endThinking: function () { Face2D.endThinking(); Face3D.endThinking(); }
     };
   })();
 
