@@ -219,11 +219,36 @@
   #stage3d { position: absolute; inset: 0; }
   #stage3d[hidden] { display: none; }
   #stage3d canvas { width: 100%; height: 100%; display: block; touch-action: none; }
-  #modeBtn { top: auto; bottom: 8px; right: 12px; }
-  #credit { position: absolute; left: 12px; bottom: 10px; font-size: 11px; color: var(--muted); pointer-events: none; }
+  header .hbtn { padding: 0 10px; }
+  #credit { position: absolute; left: 12px; top: 10px; max-width: 150px; font-size: 11px; line-height: 1.25; color: var(--muted); pointer-events: none; }
   #credit[hidden] { display: none; }
   body.mode-3d #stage { height: min(32vh, 250px); }
-  @media (max-height: 640px) { #stage { display: none; } body.stage-on #avatar { display: block; } }
+  /* Full-screen view: the avatar fills the screen and the chat floats over her */
+  body.view-full #stage {
+    position: fixed; top: 0; left: 0; right: 0;
+    height: var(--fullH, 100%);
+    z-index: 0;
+    background: radial-gradient(circle at 50% 36%, #3b4285 0%, #232a56 48%, #131833 100%);
+  }
+  body.view-full header { position: relative; z-index: 2; background: transparent; }
+  body.view-full .title h1 { display: none; }
+  body.view-full #status { color: #e3e7ff; text-shadow: 0 1px 4px rgba(0, 0, 0, .7); }
+  body.view-full .hbtn { background: rgba(27, 35, 64, .62); }
+  body.view-full .stagebtn { display: none; }
+  body.view-full #credit { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 66px); left: 14px; z-index: 1; }
+  body.view-full main {
+    position: relative; z-index: 2;
+    flex: 0 1 auto; margin-top: auto;
+    max-height: min(46vh, 380px);
+    padding-top: 28px;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 30%);
+    mask-image: linear-gradient(to bottom, transparent 0, #000 30%);
+  }
+  body.view-full .msg.ai { background: rgba(46, 56, 107, .68); }
+  body.view-full .msg.me { background: rgba(240, 138, 166, .8); }
+  body.view-full form { position: relative; z-index: 2; background: rgba(27, 35, 64, .5); }
+  body.view-full #input, body.view-full #mic { background: rgba(70, 80, 140, .7); }
+  @media (max-height: 640px) { body:not(.view-full) #stage { display: none; } body:not(.view-full).stage-on #avatar { display: block; } }
 
   @media (prefers-reduced-motion: reduce) {
     #avatar.thinking, #avatar.speaking, #mic.on { animation: none; }
@@ -238,6 +263,7 @@
       <h1 id="name"></h1>
       <div id="status">Online</div>
     </div>
+    <button id="viewBtn" class="hbtn" type="button" aria-label="Change the avatar view">Full</button>
     <button id="voiceBtn" class="hbtn" type="button" aria-label="Change voice">Voice</button>
     <button id="memBtn" class="hbtn" type="button" aria-label="Open memories">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>
@@ -286,7 +312,6 @@
     </svg>
     <div id="stage3d" hidden></div>
     <div id="credit" hidden>Avatar “Aura” by Mrhunt394 YT</div>
-    <button id="modeBtn" class="hbtn stagebtn" type="button" aria-label="Switch between 3D and 2D avatar">3D</button>
     <button id="lookBtn" class="hbtn stagebtn" type="button" aria-label="Change her look">Look</button>
     <button id="stageHide" class="hbtn stagebtn" type="button" aria-label="Hide the avatar">Hide</button>
   </div>
@@ -709,6 +734,7 @@
         avatar.addEventListener("click", function () { showStage(true); });
       },
       run: function (on) { if (on) start(); else stop(); },
+      show: function (on) { showStage(on); },
       setState: function (s) { state = s; if (s !== "speaking") talking = false; },
       speak: function (text) { visemes = buildVisemes(text); visIdx = 0; lastElapsed = 0; talkStart = performance.now(); talking = true; state = "speaking"; },
       stopTalking: function () { talking = false; if (state === "speaking") state = "idle"; },
@@ -736,6 +762,7 @@
     let THREE = null, renderer = null, scene = null, camera = null, vrm = null, lookTarget = null;
     let headBone = null, neckBone = null, chestBone = null;
     let headY = 1.45;
+    let framing = "bust", bodyTop = 1.66, bodyBottom = 0, hipsBone = null, curPR = 0;
     let state = "idle";
     let talking = false, talkStart = 0, visemes = [], visTotal = 1, visIdx = 0, lastElapsed = 0;
     const cur = {};
@@ -853,10 +880,30 @@
       if (headBone) headBone.rotation.set(pose.nod, pose.turn, pose.tilt);
       if (neckBone) neckBone.rotation.set(pose.nod * 0.4, pose.turn * 0.4, pose.tilt * 0.4);
       if (chestBone && !calm) chestBone.rotation.set(Math.sin(t * 1.5) * 0.012, 0, 0);
-      if (lookTarget) lookTarget.position.set(pose.gx, headY + pose.gy, 1.2);
+      if (hipsBone && !calm) hipsBone.rotation.set(0, Math.sin(t * 0.45) * 0.025, 0);
+      if (lookTarget) lookTarget.position.set(pose.gx, headY + pose.gy, camera.position.z);
 
       vrm.update(dt);
       renderer.render(scene, camera);
+    }
+
+    function applyFraming() {
+      if (!camera) return;
+      const pr = Math.min(window.devicePixelRatio || 1, framing === "full" ? 1.5 : 2);
+      if (renderer && pr !== curPR) { curPR = pr; renderer.setPixelRatio(pr); }
+      const tanH = Math.tan((camera.fov * Math.PI / 180) / 2);
+      let cy, d;
+      if (framing === "full") {
+        const h = (bodyTop - bodyBottom) * 1.14;
+        cy = (bodyTop + bodyBottom) / 2 + 0.02;
+        d = Math.max(h / (2 * tanH), 0.85 / (2 * tanH * camera.aspect));
+      } else {
+        cy = headY + 0.03;
+        d = 1.0;
+      }
+      camera.position.set(0, cy, d);
+      camera.lookAt(0, cy, 0);
+      camera.updateProjectionMatrix();
     }
 
     function resize() {
@@ -864,7 +911,7 @@
       const w = host.clientWidth || 300, h = host.clientHeight || 200;
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
-      camera.updateProjectionMatrix();
+      applyFraming();
     }
 
     async function doLoad() {
@@ -915,9 +962,13 @@
         headBone.getWorldPosition(hp);
         headY = hp.y;
       }
-      const cy = headY + 0.03;
-      camera.position.set(0, cy, 1.0);
-      camera.lookAt(0, cy, 0);
+      hipsBone = bone("hips");
+      try {
+        const box = new THREE.Box3().setFromObject(vrm.scene);
+        if (isFinite(box.max.y) && isFinite(box.min.y) && box.max.y - box.min.y > 0.5 && box.max.y - box.min.y < 3) {
+          bodyTop = box.max.y; bodyBottom = box.min.y;
+        }
+      } catch (e) { /* keep the default height */ }
       if (vrm.lookAt) vrm.lookAt.target = lookTarget;
 
       resize();
@@ -928,6 +979,7 @@
     api = {
       onLost: null,
       isReady: function () { return ready; },
+      setFraming: function (k) { framing = k; if (ready) resize(); },
       load: function () {
         if (ready) return Promise.resolve();
         if (!loading) loading = doLoad().catch(function (e) { loading = null; throw e; });
@@ -946,34 +998,48 @@
     return api;
   })();
 
-  // ---------- Avatar switcher: 3D Aura by default, 2D face as a fallback ----------
+  // ---------- Avatar views: Full screen 3D, 3D at the top, or the 2D face ----------
   const Face = (function () {
     const stageEl = document.getElementById("stage");
     const faceSvg = document.getElementById("face");
     const stage3d = document.getElementById("stage3d");
     const lookBtn = document.getElementById("lookBtn");
-    const modeBtn = document.getElementById("modeBtn");
+    const viewBtn = document.getElementById("viewBtn");
     const credit = document.getElementById("credit");
-    let mode = "2d";
+    const VIEWS = ["full", "top", "2d"];
+    const LABEL = { full: "Full", top: "Top", "2d": "2D" };
+    let view = "2d";
+    let maxH = 0, lastW = 0;
+
+    // keep the full-screen avatar the same size when the keyboard opens
+    function lockStageHeight() {
+      const w = window.innerWidth, h = window.innerHeight;
+      if (w !== lastW) { maxH = 0; lastW = w; }
+      maxH = Math.max(maxH, h);
+      document.documentElement.style.setProperty("--fullH", maxH + "px");
+    }
 
     function applyRun() {
       const vis = !stageEl.hidden && !document.hidden;
-      Face2D.run(vis && mode === "2d");
-      Face3D.run(vis && mode === "3d");
+      Face2D.run(vis && view === "2d");
+      Face3D.run(vis && view !== "2d");
     }
 
     function paint() {
-      const is3 = mode === "3d";
+      const is3 = view !== "2d", full = view === "full";
       faceSvg.style.display = is3 ? "none" : "";
       stage3d.hidden = !is3;
       credit.hidden = !is3;
       lookBtn.style.display = is3 ? "none" : "";
-      modeBtn.textContent = is3 ? "2D" : "3D";
+      viewBtn.textContent = LABEL[view];
       document.body.classList.toggle("mode-3d", is3);
+      document.body.classList.toggle("view-full", full);
+      if (full) Face2D.show(true);
+      Face3D.setFraming(full ? "full" : "bust");
     }
 
-    async function setMode(m, remember) {
-      if (m === "3d") {
+    async function setView(v, remember) {
+      if (v !== "2d") {
         try {
           setStatus("Loading Aura…");
           await Face3D.load();
@@ -981,11 +1047,11 @@
         } catch (e) {
           console.error(e);
           setStatus("3D not available: " + (e && e.message ? e.message : String(e)), 7000);
-          m = "2d";
+          v = "2d";
         }
       }
-      mode = m;
-      if (remember) lsSet("companion_avatar", m);
+      view = v;
+      if (remember) lsSet("companion_view", v);
       paint();
       applyRun();
     }
@@ -993,11 +1059,15 @@
     return {
       applyRun: applyRun,
       init: function () {
+        lockStageHeight();
+        window.addEventListener("resize", lockStageHeight);
         Face2D.init();
-        Face3D.onLost = function () { setStatus("3D stopped, using the 2D face", 5000); setMode("2d", false); };
-        modeBtn.addEventListener("click", function () { setMode(mode === "3d" ? "2d" : "3d", true); });
+        Face3D.onLost = function () { setStatus("3D stopped, using the 2D face", 5000); setView("2d", false); };
+        viewBtn.addEventListener("click", function () { setView(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length], true); });
         document.addEventListener("visibilitychange", applyRun);
-        setMode(lsGet("companion_avatar") === "2d" ? "2d" : "3d", false);
+        const old = lsGet("companion_avatar");
+        const pref = lsGet("companion_view") || (old === "2d" ? "2d" : "full");
+        setView(VIEWS.indexOf(pref) >= 0 ? pref : "full", false);
       },
       setState: function (s) { Face2D.setState(s); Face3D.setState(s); },
       speak: function (t) { Face2D.speak(t); Face3D.speak(t); },
