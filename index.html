@@ -813,8 +813,8 @@
       if(id){const label=applyWallpaper(map[id]);return "Of course. I’ve changed our background to "+label+"."; }
       return "I can change the background to Midnight, Sakura, Starry Night, Cyber City, Aurora, Ocean or Moon Garden. Which would you like?";
     }
-    const outfitMatch=t.match(/(?:change|switch|wear|put on|dress in)(?: into)? (?:my |your |the )?(.+?)(?: outfit| clothes| style)?$/);
-    if(outfitMatch && /outfit|clothes|wear|dress|change|switch|put on/.test(t)){
+    const outfitMatch=t.match(/(?:change|switch|make|put on|wear|dress in)(?: into)? (?:my |your |the )?(?:outfit|clothes|look|style)? ?(?:to |into |for )?(.+?)(?: outfit| clothes| look| style)?$/);
+    if(outfitMatch && /outfit|clothes|wear|dress|change|switch|put on|make me|make your/.test(t)){
       const q=outfitMatch[1].trim();
       const map={"original":"default","default":"default","casual":"casual","elegant":"elegant","formal":"elegant","gothic":"gothic","winter":"winter","warm":"winter","rose":"rose","pink":"rose","midnight":"midnight","black":"midnight"};
       const id=Object.keys(map).find(k=>q.includes(k));
