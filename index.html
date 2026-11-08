@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#1b2340" />
-<title>Companion</title>
+<title>AURA</title>
 <style>
   :root {
     --ink: #1b2340;
@@ -254,6 +254,129 @@
     #avatar.thinking, #avatar.speaking, #mic.on { animation: none; }
     main { scroll-behavior: auto; }
   }
+
+  /* AURA visual refinement — anime companion layout */
+  :root {
+    --ink: #090b16;
+    --panel: #111528;
+    --bubble-ai: #1a2140;
+    --bubble-me: #b98cff;
+    --text: #f7f3ff;
+    --text-me: #160d28;
+    --muted: #a9a6c4;
+    --glow: #d6b5ff;
+  }
+  html, body { min-height: 100%; }
+  body {
+    min-height: 100dvh;
+    background:
+      radial-gradient(ellipse at 50% -15%, rgba(112, 83, 190, .22), transparent 48%),
+      linear-gradient(180deg, #0d1020 0%, #090b16 70%);
+  }
+  header {
+    position: relative;
+    z-index: 1;
+    padding: 13px 14px;
+    gap: 9px;
+    background: rgba(17, 21, 40, .96);
+    border-bottom: 1px solid rgba(194, 165, 255, .14);
+    box-shadow: 0 8px 28px rgba(0,0,0,.16);
+  }
+  header h1 { letter-spacing: .04em; font-size: 18px; }
+  #avatar {
+    background: radial-gradient(circle at 35% 28%, #ffe5f1 0%, #d9a3ff 38%, #7856c9 100%);
+    box-shadow: 0 0 18px rgba(183, 139, 255, .28);
+  }
+  .hbtn {
+    background: #202541;
+    border: 1px solid rgba(202, 180, 255, .14);
+    border-radius: 14px;
+    min-width: 38px;
+  }
+  #stage {
+    height: clamp(220px, 34svh, 330px);
+    background:
+      radial-gradient(ellipse at 50% 70%, rgba(152, 111, 225, .25), transparent 58%),
+      linear-gradient(180deg, #11162c 0%, #0b0e1c 100%);
+    border-bottom: 1px solid rgba(194, 165, 255, .12);
+    overflow: hidden;
+  }
+  body.mode-3d #stage { height: clamp(240px, 38svh, 360px); }
+  #stage3d canvas { display: block; }
+  #credit { color: rgba(224, 214, 255, .68); }
+  main {
+    min-height: 0;
+    flex: 1 1 auto;
+    padding: 18px 15px 14px;
+    gap: 12px;
+    overscroll-behavior: contain;
+    background: linear-gradient(180deg, rgba(13,16,32,.16), rgba(9,11,22,.6));
+  }
+  .msg {
+    max-width: min(86%, 420px);
+    padding: 12px 15px;
+    border-radius: 19px;
+    line-height: 1.5;
+    box-shadow: 0 5px 18px rgba(0,0,0,.12);
+  }
+  .msg.ai {
+    background: linear-gradient(145deg, #202746, #171d36);
+    border: 1px solid rgba(185, 160, 255, .12);
+    border-bottom-left-radius: 6px;
+  }
+  .msg.me {
+    background: linear-gradient(135deg, #d2a5ff, #a985ef);
+    color: #1a1028;
+    border-bottom-right-radius: 6px;
+  }
+  .msg.typing { color: #c7b7ed; }
+  form.bar {
+    position: relative;
+    z-index: 2;
+    padding: 11px 12px calc(11px + env(safe-area-inset-bottom, 0px));
+    gap: 9px;
+    background: rgba(17, 21, 40, .98);
+    border-top: 1px solid rgba(194, 165, 255, .14);
+  }
+  #mic {
+    background: #242442;
+    border: 1px solid rgba(202, 180, 255, .18);
+    box-shadow: 0 4px 14px rgba(0,0,0,.18);
+  }
+  #mic.on { background: #d6a0ff; color: #1a1028; }
+  #input, #memInput {
+    background: #0b1021;
+    border: 1px solid rgba(194, 165, 255, .18);
+    border-radius: 18px;
+    min-height: 46px;
+  }
+  #send, #memAdd {
+    background: linear-gradient(135deg, #d4a5ff, #a987ef);
+    color: #1a1028;
+    border-radius: 16px;
+    min-width: 68px;
+    box-shadow: 0 4px 14px rgba(151, 111, 222, .18);
+  }
+  .panel { background: #090b16; }
+  .panel-head {
+    background: #111528;
+    border-bottom: 1px solid rgba(194, 165, 255, .14);
+  }
+  #memList li {
+    background: #1a2140;
+    border: 1px solid rgba(194, 165, 255, .10);
+  }
+  @media (max-width: 380px) {
+    header { gap: 6px; padding-left: 10px; padding-right: 10px; }
+    .hbtn { padding: 0 8px; }
+    #stage { height: clamp(190px, 30svh, 270px); }
+    main { padding-left: 12px; padding-right: 12px; }
+    #send { min-width: 58px; padding: 0 13px; }
+  }
+  @media (max-height: 640px) {
+    body:not(.view-full) #stage { display: flex; height: 22svh; min-height: 130px; }
+  }
+
 </style>
 </head>
 <body>
@@ -343,8 +466,8 @@
   import { Capacitor, registerPlugin } from "@capacitor/core";
 
   // ---------- Settings: change these ----------
-  const COMPANION_NAME = "Companion";
-  const GREETING = "Hi, I’m here. What’s on your mind?";
+  const COMPANION_NAME = "AURA";
+  const GREETING = "Hey, I’m AURA. I’m here with you — what would you like to do?";
   const STORAGE_KEY = "companion_chat_v1";
   const MEMORY_KEY = "companion_memories_v1";
   const MAX_MEMORIES = 100;
@@ -1066,7 +1189,9 @@
         viewBtn.addEventListener("click", function () { setView(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length], true); });
         document.addEventListener("visibilitychange", applyRun);
         const old = lsGet("companion_avatar");
-        const pref = lsGet("companion_view") || (old === "2d" ? "2d" : "full");
+        const savedView = lsGet("companion_view");
+        const pref = savedView === "full" || !savedView ? "top" : (savedView || (old === "2d" ? "2d" : "top"));
+        if (savedView === "full" || !savedView) lsSet("companion_view", "top");
         setView(VIEWS.indexOf(pref) >= 0 ? pref : "full", false);
       },
       setState: function (s) { Face2D.setState(s); Face3D.setState(s); },
