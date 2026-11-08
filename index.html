@@ -552,6 +552,43 @@
     body.view-full #mic.on { animation: none; }
   }
 
+
+  /* AURA instant customization system */
+  .custom-panel {
+    position: fixed; z-index: 20; left: 12px; right: 12px;
+    top: calc(env(safe-area-inset-top, 0px) + 54px);
+    max-height: min(72dvh, 560px); overflow-y: auto;
+    padding: 16px; border-radius: 22px;
+    color: #f7efff; background: rgba(18, 13, 31, .94);
+    border: 1px solid rgba(221,190,255,.22);
+    box-shadow: 0 18px 60px rgba(0,0,0,.48);
+    backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px);
+  }
+  .custom-panel[hidden] { display: none !important; }
+  .custom-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; }
+  .custom-head strong { display:block; font-size:16px; }
+  .custom-head small,.custom-note { display:block; margin-top:3px; color:#b8a9cc; font-size:11px; line-height:1.45; }
+  .custom-section { margin-top:13px; }
+  .custom-section > strong { display:block; margin-bottom:9px; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:#d9c5f4; }
+  .choice-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+  .choice-chip {
+    min-height:58px; padding:8px 6px; border-radius:13px;
+    color:#f8f1ff; background:rgba(255,255,255,.055);
+    border:1px solid rgba(226,204,255,.14); font:inherit; font-size:11px;
+    text-align:center; cursor:pointer;
+  }
+  .choice-chip[aria-pressed="true"] { border-color:#d8aaff; background:rgba(167,112,222,.25); box-shadow:inset 0 0 0 1px rgba(216,170,255,.22); }
+  .choice-chip .swatch { display:block; width:25px; height:7px; border-radius:8px; margin:0 auto 7px; background:var(--swatch); }
+  .custom-note { margin-top:9px; }
+  body.wallpaper-sakura #stage, body.wallpaper-sakura.view-full #stage { background:radial-gradient(ellipse at 50% 28%,rgba(239,153,198,.38),transparent 56%),linear-gradient(160deg,#321b3a,#171126 60%,#090612); }
+  body.wallpaper-starry #stage, body.wallpaper-starry.view-full #stage { background:radial-gradient(ellipse at 50% 20%,rgba(103,124,214,.34),transparent 55%),radial-gradient(circle at 18% 28%,#fff8 0 1px,transparent 2px),radial-gradient(circle at 78% 42%,#fff9 0 1px,transparent 2px),linear-gradient(160deg,#101a3b,#080b1d 75%); background-size:auto,110px 130px,150px 170px,auto; }
+  body.wallpaper-cyber #stage, body.wallpaper-cyber.view-full #stage { background:radial-gradient(ellipse at 50% 35%,rgba(0,226,221,.25),transparent 52%),linear-gradient(145deg,#101b32,#211039 55%,#080a18); }
+  body.wallpaper-aurora #stage, body.wallpaper-aurora.view-full #stage { background:radial-gradient(ellipse at 20% 22%,rgba(80,255,194,.28),transparent 45%),radial-gradient(ellipse at 80% 36%,rgba(145,116,255,.35),transparent 50%),linear-gradient(160deg,#0d2633,#11102a 70%); }
+  body.wallpaper-ocean #stage, body.wallpaper-ocean.view-full #stage { background:radial-gradient(ellipse at 50% 22%,rgba(81,192,224,.3),transparent 52%),linear-gradient(180deg,#102d4a,#0b1831 65%,#080b19); }
+  body.wallpaper-moon #stage, body.wallpaper-moon.view-full #stage { background:radial-gradient(circle at 76% 22%,rgba(255,236,192,.28) 0 8%,transparent 8.5%),radial-gradient(ellipse at 50% 50%,rgba(150,125,184,.22),transparent 60%),linear-gradient(160deg,#2a203e,#111124 70%,#090612); }
+  body.view-full.wallpaper-sakura #stage, body.view-full.wallpaper-starry #stage, body.view-full.wallpaper-cyber #stage, body.view-full.wallpaper-aurora #stage, body.view-full.wallpaper-ocean #stage, body.view-full.wallpaper-moon #stage { background-blend-mode:screen,normal; }
+  @media(max-width:380px){.choice-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.custom-panel{left:8px;right:8px;padding:13px;}}
+
 </style>
 </head>
 <body>
@@ -561,6 +598,7 @@
       <h1 id="name"></h1>
       <div id="status">Online</div>
     </div>
+    <button id="customBtn" class="hbtn" type="button" aria-label="Open appearance settings">Style</button>
     <button id="viewBtn" class="hbtn" type="button" aria-label="Change the avatar view">Full</button>
     <button id="voiceBtn" class="hbtn" type="button" aria-label="Change voice">Voice</button>
     <button id="memBtn" class="hbtn" type="button" aria-label="Open memories">
@@ -613,6 +651,12 @@
     <button id="lookBtn" class="hbtn stagebtn" type="button" aria-label="Change her look">Look</button>
     <button id="stageHide" class="hbtn stagebtn" type="button" aria-label="Hide the avatar">Hide</button>
   </div>
+
+  <section id="customPanel" class="custom-panel" role="dialog" aria-modal="false" aria-label="AURA appearance settings" hidden>
+    <div class="custom-head"><div><strong>Make it yours</strong><small>Change AURA’s world and look</small></div><button id="customClose" class="hbtn" type="button" aria-label="Close appearance settings">✕</button></div>
+    <div class="custom-section"><strong>Backgrounds</strong><div id="wallpaperChoices" class="choice-grid"></div></div>
+    <div class="custom-section"><strong>Outfit styles</strong><div id="outfitChoices" class="choice-grid"></div><small class="custom-note">Style presets recolor compatible clothing materials. Different garment shapes require additional VRM outfit assets.</small></div>
+  </section>
 
   <main id="list" aria-live="polite"></main>
 
@@ -698,6 +742,92 @@
     clearTimeout(statusTimer);
     if (resetAfterMs) statusTimer = setTimeout(function () { statusEl.textContent = "Online"; }, resetAfterMs);
   }
+
+  // ---------- AURA instant customization system ----------
+  const WALLPAPERS = [
+    {id:"default",label:"Midnight",swatch:"linear-gradient(90deg,#171126,#090612)"},
+    {id:"sakura",label:"Sakura",swatch:"linear-gradient(90deg,#e9a4c9,#321b3a)"},
+    {id:"starry",label:"Starry night",swatch:"linear-gradient(90deg,#657bd6,#101a3b)"},
+    {id:"cyber",label:"Cyber city",swatch:"linear-gradient(90deg,#00d9ce,#211039)"},
+    {id:"aurora",label:"Aurora",swatch:"linear-gradient(90deg,#50ffc2,#9174ff)"},
+    {id:"ocean",label:"Ocean",swatch:"linear-gradient(90deg,#51c0e0,#102d4a)"},
+    {id:"moon",label:"Moon garden",swatch:"linear-gradient(90deg,#ffedc0,#2a203e)"}
+  ];
+  const OUTFITS = [
+    {id:"default",label:"Original",swatch:"#c9b4e8",colors:["#c9b4e8","#8c78b8"]},
+    {id:"casual",label:"Casual",swatch:"#70b9e8",colors:["#70b9e8","#315d91"]},
+    {id:"elegant",label:"Elegant",swatch:"#d8b36b",colors:["#d8b36b","#6b3f58"]},
+    {id:"gothic",label:"Gothic",swatch:"#9a78bd",colors:["#30243f","#8f315e"]},
+    {id:"winter",label:"Winter",swatch:"#b9e5ed",colors:["#b9e5ed","#647da8"]},
+    {id:"rose",label:"Rose",swatch:"#ef9ab9",colors:["#ef9ab9","#9f477b"]},
+    {id:"midnight",label:"Midnight",swatch:"#7182c7",colors:["#20294d","#7182c7"]}
+  ];
+  const customPanel = document.getElementById("customPanel");
+  const customBtn = document.getElementById("customBtn");
+  const customClose = document.getElementById("customClose");
+  const wallpaperChoices = document.getElementById("wallpaperChoices");
+  const outfitChoices = document.getElementById("outfitChoices");
+  let currentWallpaper = lsGet("aura_wallpaper") || "default";
+  let currentOutfit = lsGet("aura_outfit") || "default";
+  function applyWallpaper(id, persist) {
+    const item = WALLPAPERS.find(x => x.id === id) || WALLPAPERS[0];
+    WALLPAPERS.forEach(x => document.body.classList.remove("wallpaper-" + x.id));
+    if (item.id !== "default") document.body.classList.add("wallpaper-" + item.id);
+    currentWallpaper = item.id;
+    if (persist !== false) lsSet("aura_wallpaper", item.id);
+    renderCustomization();
+    return item.label;
+  }
+  function applyOutfit(id, persist) {
+    const item = OUTFITS.find(x => x.id === id) || OUTFITS[0];
+    const changed = Face.setOutfit(item.id, item.colors);
+    currentOutfit = item.id;
+    if (persist !== false) lsSet("aura_outfit", item.id);
+    renderCustomization();
+    return {label:item.label, changed:changed};
+  }
+  function renderCustomization() {
+    if (!wallpaperChoices || !outfitChoices) return;
+    wallpaperChoices.innerHTML = WALLPAPERS.map(x => '<button type="button" class="choice-chip" data-wallpaper="'+x.id+'" aria-pressed="'+(x.id===currentWallpaper)+'"><span class="swatch" style="--swatch:'+x.swatch+'"></span>'+x.label+'</button>').join("");
+    outfitChoices.innerHTML = OUTFITS.map(x => '<button type="button" class="choice-chip" data-outfit="'+x.id+'" aria-pressed="'+(x.id===currentOutfit)+'"><span class="swatch" style="--swatch:'+x.swatch+'"></span>'+x.label+'</button>').join("");
+  }
+  function openCustomization(open) { customPanel.hidden = !open; if (open) renderCustomization(); }
+  customBtn.addEventListener("click", function(){openCustomization(customPanel.hidden);});
+  customClose.addEventListener("click", function(){openCustomization(false);});
+  wallpaperChoices.addEventListener("click", function(e) {
+    const b=e.target.closest("[data-wallpaper]"); if(!b)return;
+    const label=applyWallpaper(b.dataset.wallpaper); setStatus(label+" background",1800);
+  });
+  outfitChoices.addEventListener("click", function(e) {
+    const b=e.target.closest("[data-outfit]"); if(!b)return;
+    const result=applyOutfit(b.dataset.outfit);
+    setStatus(result.changed ? result.label+" style applied" : "Outfit assets needed",2500);
+  });
+  function appearanceCommand(text) {
+    const t=String(text).toLowerCase();
+    const wallpaperMatch=t.match(/(?:change|switch|set|use|show)(?: the)? (?:background|wallpaper|scene)(?: to)? (.+)|(?:background|wallpaper|scene) (?:to|change to) (.+)/);
+    if (wallpaperMatch) {
+      const q=(wallpaperMatch[1]||wallpaperMatch[2]||"").trim();
+      const map={"midnight":"default","default":"default","sakura":"sakura","cherry blossom":"sakura","pink":"sakura","starry":"starry","stars":"starry","night sky":"starry","cyber":"cyber","city":"cyber","neon":"cyber","aurora":"aurora","northern lights":"aurora","ocean":"ocean","sea":"ocean","moon":"moon","moon garden":"moon"};
+      const id=Object.keys(map).find(k=>q.includes(k));
+      if(id){const label=applyWallpaper(map[id]);return "Of course. I’ve changed our background to "+label+"."; }
+      return "I can change the background to Midnight, Sakura, Starry Night, Cyber City, Aurora, Ocean or Moon Garden. Which would you like?";
+    }
+    const outfitMatch=t.match(/(?:change|switch|wear|put on|dress in)(?: into)? (?:my |your |the )?(.+?)(?: outfit| clothes| style)?$/);
+    if(outfitMatch && /outfit|clothes|wear|dress|change|switch|put on/.test(t)){
+      const q=outfitMatch[1].trim();
+      const map={"original":"default","default":"default","casual":"casual","elegant":"elegant","formal":"elegant","gothic":"gothic","winter":"winter","warm":"winter","rose":"rose","pink":"rose","midnight":"midnight","black":"midnight"};
+      const id=Object.keys(map).find(k=>q.includes(k));
+      if(id){const result=applyOutfit(map[id]);return result.changed ? "I’ve switched to my "+result.label+" style." : "I can save that style choice, but this avatar needs compatible clothing materials or a separate VRM outfit model before I can visibly change clothes. The current model’s clothing parts weren’t identifiable for safe recoloring."; }
+      return "I can switch between Original, Casual, Elegant, Gothic, Winter, Rose and Midnight styles. For completely different garments, I’ll need additional VRM outfit models.";
+    }
+    if(/(?:open|show).*(?:wardrobe|outfit|appearance|background)|(?:change|customi[sz]e).*(?:my )?(?:look|appearance)/.test(t)){
+      openCustomization(true); return "Here’s my wardrobe and background collection. Pick the look you’d like.";
+    }
+    return null;
+  }
+  renderCustomization();
+  applyWallpaper(currentWallpaper, false);
 
   function load() {
     try { messages = JSON.parse(lsGet(STORAGE_KEY) || "[]"); } catch (e) { messages = []; }
@@ -1278,6 +1408,25 @@
       onLost: null,
       isReady: function () { return ready; },
       setFraming: function (k) { framing = k; if (ready) resize(); },
+      setOutfit: function (id, colors) {
+        if (!ready || !vrm) return false;
+        const re = /(cloth|outfit|dress|shirt|top|skirt|jacket|sleeve|uniform|hoodie|pants|trouser|coat)/i;
+        let count = 0;
+        vrm.scene.traverse(function (o) {
+          if (!o.isMesh || !o.material) return;
+          const mats = Array.isArray(o.material) ? o.material : [o.material];
+          const matched = re.test(String(o.name || "") + " " + mats.map(m => m && m.name || "").join(" "));
+          if (!matched) return;
+          mats.forEach(function(m, i) {
+            if (!m || !m.color) return;
+            if (!m.userData) m.userData = {};
+            if (!m.userData.auraOriginalColor) m.userData.auraOriginalColor = m.color.getHex();
+            const hex = id === "default" ? m.userData.auraOriginalColor : colors[(count + i) % colors.length];
+            m.color.set(hex); m.needsUpdate = true; count++;
+          });
+        });
+        return count > 0;
+      },
       load: function () {
         if (ready) return Promise.resolve();
         if (!loading) loading = doLoad().catch(function (e) { loading = null; throw e; });
@@ -1369,6 +1518,7 @@
         if (savedView === "top") lsSet("companion_view", "full");
         setView(VIEWS.indexOf(pref) >= 0 ? pref : "full", false);
       },
+      setOutfit: function (id, colors) { return Face3D.setOutfit(id, colors); },
       setState: function (s) { Face2D.setState(s); Face3D.setState(s); },
       speak: function (t) { Face2D.speak(t); Face3D.speak(t); },
       stopTalking: function () { Face2D.stopTalking(); Face3D.stopTalking(); },
@@ -1479,6 +1629,13 @@
   async function handleSend(text) {
     await stopSpeaking();
     add("me", text);
+    const appearanceReply = appearanceCommand(text);
+    if (appearanceReply) {
+      add("ai", appearanceReply);
+      setStatus("Appearance updated", 1800);
+      say(appearanceReply);
+      return;
+    }
     sendBtn.disabled = true;
     avatar.classList.add("thinking");
     Face.setState("thinking");
@@ -1517,6 +1674,7 @@
   paintMemCount();
   loadVoices();
   Face.init();
+  window.setTimeout(function(){ if(currentOutfit!=="default") { const result=applyOutfit(currentOutfit,false); if(!result.changed) setStatus("Add compatible outfit assets to enable clothing styles",3500); } }, 1800);
   if (messages.length === 0) {
     messages.push({ role: "ai", text: GREETING, t: Date.now() });
     save();
