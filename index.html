@@ -1188,6 +1188,8 @@
     const calm = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     let ready = false, loading = null;
     let THREE = null, renderer = null, scene = null, camera = null, vrm = null, lookTarget = null;
+    let VRM_MODULE = null, GLTF_LOADER_INSTANCE = null;
+    let currentModelUrl = AVATAR_URL, switchingModel = false;
     let headBone = null, neckBone = null, chestBone = null;
     let headY = 1.45;
     let framing = "bust", bodyTop = 1.66, bodyBottom = 0, hipsBone = null, curPR = 0;
@@ -1224,6 +1226,46 @@
       }
       visTotal = Math.max(total, 1);
       return out;
+    }
+
+    async function switchModel(url, initial) {
+      if (!url || switchingModel || (url === currentModelUrl && vrm)) return false;
+      switchingModel = true;
+      try {
+        const gltf = await new Promise(function(resolve,reject) {
+          GLTF_LOADER_INSTANCE.load(url, resolve, function(pr) {
+            if (pr && pr.total) setStatus("Changing outfit… " + Math.round(100*pr.loaded/pr.total) + "%");
+          }, reject);
+        });
+        const next = gltf.userData && gltf.userData.vrm;
+        if (!next) throw new Error("The selected file is not a valid VRM model");
+        const U = VRM_MODULE.VRMUtils;
+        if (U && U.rotateVRM0) U.rotateVRM0(next);
+        if (U && U.combineSkeletons) { try { U.combineSkeletons(next.scene); } catch(e) {} }
+        next.scene.traverse(function(o){o.frustumCulled=false;});
+        const previous = vrm;
+        vrm = next;
+        scene.add(vrm.scene);
+        if (previous && previous.scene) {
+          scene.remove(previous.scene);
+          previous.scene.traverse(function(o){
+            if(o.geometry) o.geometry.dispose();
+            if(o.material) (Array.isArray(o.material)?o.material:[o.material]).forEach(function(m){if(m && m.dispose)m.dispose();});
+          });
+        }
+        headBone=bone("head"); neckBone=bone("neck"); chestBone=bone("chest")||bone("spine"); hipsBone=bone("hips");
+        poseArms();
+        vrm.scene.updateMatrixWorld(true);
+        if(headBone){const hp=new THREE.Vector3();headBone.getWorldPosition(hp);headY=hp.y;}
+        try {
+          const box=new THREE.Box3().setFromObject(vrm.scene);
+          if(isFinite(box.max.y)&&isFinite(box.min.y)&&box.max.y-box.min.y>0.5&&box.max.y-box.min.y<3){bodyTop=box.max.y;bodyBottom=box.min.y;}
+        } catch(e) {}
+        if(vrm.lookAt) vrm.lookAt.target=lookTarget;
+        currentModelUrl=url;
+        if(camera) resize();
+        return true;
+      } finally { switchingModel=false; }
     }
 
     function bone(name) { return vrm && vrm.humanoid ? vrm.humanoid.getNormalizedBoneNode(name) : null; }
@@ -1367,38 +1409,9 @@
 
       const loader = new loaderMod.GLTFLoader();
       loader.register(function (parser) { return new vrmMod.VRMLoaderPlugin(parser); });
-      const gltf = await new Promise(function (resolve, reject) {
-        loader.load(AVATAR_URL, resolve, function (pr) {
-          if (pr && pr.total) setStatus("Loading Aura… " + Math.round(100 * pr.loaded / pr.total) + "%");
-        }, reject);
-      });
-      vrm = gltf.userData && gltf.userData.vrm;
-      if (!vrm) throw new Error("avatar.vrm is not a VRM file");
-      const U = vrmMod.VRMUtils;
-      if (U && U.rotateVRM0) U.rotateVRM0(vrm);
-      if (U && U.combineSkeletons) { try { U.combineSkeletons(vrm.scene); } catch (e) { /* optional */ } }
-      vrm.scene.traverse(function (o) { o.frustumCulled = false; });
-      scene.add(vrm.scene);
-
-      headBone = bone("head");
-      neckBone = bone("neck");
-      chestBone = bone("chest") || bone("spine");
-      poseArms();
-      vrm.scene.updateMatrixWorld(true);
-      if (headBone) {
-        const hp = new THREE.Vector3();
-        headBone.getWorldPosition(hp);
-        headY = hp.y;
-      }
-      hipsBone = bone("hips");
-      try {
-        const box = new THREE.Box3().setFromObject(vrm.scene);
-        if (isFinite(box.max.y) && isFinite(box.min.y) && box.max.y - box.min.y > 0.5 && box.max.y - box.min.y < 3) {
-          bodyTop = box.max.y; bodyBottom = box.min.y;
-        }
-      } catch (e) { /* keep the default height */ }
-      if (vrm.lookAt) vrm.lookAt.target = lookTarget;
-
+      VRM_MODULE = vrmMod;
+      GLTF_LOADER_INSTANCE = loader;
+      await switchModel(AVATAR_URL, true);
       resize();
       if (window.ResizeObserver) new ResizeObserver(resize).observe(host);
       ready = true;
@@ -1408,6 +1421,11 @@
       onLost: null,
       isReady: function () { return ready; },
       setFraming: function (k) { framing = k; if (ready) resize(); },
+      switchOutfitModel: function(url) {
+        if (!ready) return Promise.reject(new Error("3D avatar is not ready"));
+        return switchModel(url, false);
+      },
+      getCurrentModel: function(){return currentModelUrl;},
       setOutfit: function (id, colors) {
         if (!ready || !vrm) return false;
         const re = /(cloth|outfit|dress|shirt|top|skirt|jacket|sleeve|uniform|hoodie|pants|trouser|coat)/i;
@@ -1519,6 +1537,7 @@
         setView(VIEWS.indexOf(pref) >= 0 ? pref : "full", false);
       },
       setOutfit: function (id, colors) { return Face3D.setOutfit(id, colors); },
+      switchOutfitModel: function(url) { return Face3D.switchOutfitModel(url); },
       setState: function (s) { Face2D.setState(s); Face3D.setState(s); },
       speak: function (t) { Face2D.speak(t); Face3D.speak(t); },
       stopTalking: function () { Face2D.stopTalking(); Face3D.stopTalking(); },
