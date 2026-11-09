@@ -753,14 +753,15 @@
     {id:"ocean",label:"Ocean",swatch:"linear-gradient(90deg,#51c0e0,#102d4a)"},
     {id:"moon",label:"Moon garden",swatch:"linear-gradient(90deg,#ffedc0,#2a203e)"}
   ];
+  // Add matching VRM files under public/outfits/ to enable full garment changes.
   const OUTFITS = [
-    {id:"default",label:"Original",swatch:"#c9b4e8",colors:["#c9b4e8","#8c78b8"]},
-    {id:"casual",label:"Casual",swatch:"#70b9e8",colors:["#70b9e8","#315d91"]},
-    {id:"elegant",label:"Elegant",swatch:"#d8b36b",colors:["#d8b36b","#6b3f58"]},
-    {id:"gothic",label:"Gothic",swatch:"#9a78bd",colors:["#30243f","#8f315e"]},
-    {id:"winter",label:"Winter",swatch:"#b9e5ed",colors:["#b9e5ed","#647da8"]},
-    {id:"rose",label:"Rose",swatch:"#ef9ab9",colors:["#ef9ab9","#9f477b"]},
-    {id:"midnight",label:"Midnight",swatch:"#7182c7",colors:["#20294d","#7182c7"]}
+    {id:"default",label:"Original",swatch:"#c9b4e8",colors:["#c9b4e8","#8c78b8"],model:"avatar.vrm"},
+    {id:"casual",label:"Casual",swatch:"#70b9e8",colors:["#70b9e8","#315d91"],model:"outfits/aura-casual.vrm"},
+    {id:"elegant",label:"Elegant",swatch:"#d8b36b",colors:["#d8b36b","#6b3f58"],model:"outfits/aura-elegant.vrm"},
+    {id:"gothic",label:"Gothic",swatch:"#9a78bd",colors:["#30243f","#8f315e"],model:"outfits/aura-gothic.vrm"},
+    {id:"winter",label:"Winter",swatch:"#b9e5ed",colors:["#b9e5ed","#647da8"],model:"outfits/aura-winter.vrm"},
+    {id:"rose",label:"Rose",swatch:"#ef9ab9",colors:["#ef9ab9","#9f477b"],model:"outfits/aura-rose.vrm"},
+    {id:"midnight",label:"Midnight",swatch:"#7182c7",colors:["#20294d","#7182c7"],model:"outfits/aura-midnight.vrm"}
   ];
   const customPanel = document.getElementById("customPanel");
   const customBtn = document.getElementById("customBtn");
@@ -778,13 +779,27 @@
     renderCustomization();
     return item.label;
   }
-  function applyOutfit(id, persist) {
+  async function applyOutfit(id, persist) {
     const item = OUTFITS.find(x => x.id === id) || OUTFITS[0];
-    const changed = Face.setOutfit(item.id, item.colors);
-    currentOutfit = item.id;
-    if (persist !== false) lsSet("aura_outfit", item.id);
-    renderCustomization();
-    return {label:item.label, changed:changed};
+    try {
+      if (item.id === "default") {
+        await Face.switchOutfitModel("avatar.vrm");
+      } else {
+        await Face.switchOutfitModel(item.model);
+      }
+      currentOutfit = item.id;
+      if (persist !== false) lsSet("aura_outfit", item.id);
+      renderCustomization();
+      return {label:item.label, changed:true, model:true};
+    } catch (e) {
+      const changed = Face.setOutfit(item.id, item.colors);
+      if (changed) {
+        currentOutfit = item.id;
+        if (persist !== false) lsSet("aura_outfit", item.id);
+        renderCustomization();
+      }
+      return {label:item.label, changed:changed, model:false, error:e};
+    }
   }
   function renderCustomization() {
     if (!wallpaperChoices || !outfitChoices) return;
@@ -798,12 +813,13 @@
     const b=e.target.closest("[data-wallpaper]"); if(!b)return;
     const label=applyWallpaper(b.dataset.wallpaper); setStatus(label+" background",1800);
   });
-  outfitChoices.addEventListener("click", function(e) {
+  outfitChoices.addEventListener("click", async function(e) {
     const b=e.target.closest("[data-outfit]"); if(!b)return;
-    const result=applyOutfit(b.dataset.outfit);
-    setStatus(result.changed ? result.label+" style applied" : "Outfit assets needed",2500);
+    setStatus("Changing outfit…");
+    const result=await applyOutfit(b.dataset.outfit);
+    setStatus(result.model ? result.label+" outfit applied" : result.changed ? result.label+" colour style applied" : "Add "+result.label+" VRM file to public/outfits/",3500);
   });
-  function appearanceCommand(text) {
+  async function appearanceCommand(text) {
     const t=String(text).toLowerCase();
     const wallpaperMatch=t.match(/(?:change|switch|set|use|show)(?: the)? (?:background|wallpaper|scene)(?: to)? (.+)|(?:background|wallpaper|scene) (?:to|change to) (.+)/);
     if (wallpaperMatch) {
@@ -818,7 +834,7 @@
       const q=outfitMatch[1].trim();
       const map={"original":"default","default":"default","casual":"casual","elegant":"elegant","formal":"elegant","gothic":"gothic","winter":"winter","warm":"winter","rose":"rose","pink":"rose","midnight":"midnight","black":"midnight"};
       const id=Object.keys(map).find(k=>q.includes(k));
-      if(id){const result=applyOutfit(map[id]);return result.changed ? "I’ve switched to my "+result.label+" style." : "I can save that style choice, but this avatar needs compatible clothing materials or a separate VRM outfit model before I can visibly change clothes. The current model’s clothing parts weren’t identifiable for safe recoloring."; }
+      if(id){const result=await applyOutfit(map[id]);return result.model ? "I’ve changed into my "+result.label+" outfit." : result.changed ? "I’ve applied my "+result.label+" colour style. Add my matching VRM outfit file for a full clothing change." : "I don't have the "+result.label+" outfit model yet. Please add "+OUTFITS.find(x=>x.id===map[id]).model+" to my app."; }
       return "I can switch between Original, Casual, Elegant, Gothic, Winter, Rose and Midnight styles. For completely different garments, I’ll need additional VRM outfit models.";
     }
     if(/(?:open|show).*(?:wardrobe|outfit|appearance|background)|(?:change|customi[sz]e).*(?:my )?(?:look|appearance)/.test(t)){
@@ -1648,7 +1664,7 @@
   async function handleSend(text) {
     await stopSpeaking();
     add("me", text);
-    const appearanceReply = appearanceCommand(text);
+    const appearanceReply = await appearanceCommand(text);
     if (appearanceReply) {
       add("ai", appearanceReply);
       setStatus("Appearance updated", 1800);
@@ -1693,7 +1709,7 @@
   paintMemCount();
   loadVoices();
   Face.init();
-  window.setTimeout(function(){ if(currentOutfit!=="default") { const result=applyOutfit(currentOutfit,false); if(!result.changed) setStatus("Add compatible outfit assets to enable clothing styles",3500); } }, 1800);
+  window.setTimeout(async function(){ if(currentOutfit!=="default") { const result=await applyOutfit(currentOutfit,false); if(!result.model && !result.changed) setStatus("Add "+OUTFITS.find(x=>x.id===currentOutfit).model+" to restore this outfit",3500); } }, 1800);
   if (messages.length === 0) {
     messages.push({ role: "ai", text: GREETING, t: Date.now() });
     save();
