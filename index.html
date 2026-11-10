@@ -7,14 +7,19 @@
 <title>Companion</title>
 <style>
   :root {
-    --ink: #1b2340;
-    --panel: #232c52;
-    --bubble-ai: #2e386b;
-    --bubble-me: #f08aa6;
-    --text: #f1eef8;
-    --text-me: #2a1020;
+    --ink: #0e1327;
+    --panel: #212a4f;
+    --bubble-ai: #313a66;
+    --bubble-me: #7b4f8f;
+    --text: #eef0ff;
+    --text-me: #ffffff;
     --muted: #9aa3cf;
-    --glow: #8fa2ff;
+    --glow: #b08be8;
+    --accent: #a77bd8;
+    --ok: #4ade80;
+    --think: #ffc857;
+    --listen: #b794ff;
+    --speak: #6ea8ff;
     box-sizing: border-box;
   }
   *, *::before, *::after { box-sizing: inherit; }
@@ -22,123 +27,118 @@
   body {
     background: var(--ink);
     color: var(--text);
-    font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
+    font-family: system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
     font-size: 16px;
     line-height: 1.45;
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    -webkit-font-smoothing: antialiased;
+    padding: env(safe-area-inset-top, 0px) 14px env(safe-area-inset-bottom, 0px);
     display: flex;
     flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
   }
 
-  header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 16px;
-    background: var(--panel);
+  /* ----- top bar ----- */
+  #topbar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 2px 0; }
+  .brand { display: flex; align-items: center; gap: 8px; color: var(--accent); min-width: 0; }
+  .brand h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: .04em; color: var(--text); }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    max-width: 62vw; padding: 7px 13px; border-radius: 999px;
+    background: rgba(74, 222, 128, .13); color: var(--ok);
+    font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase;
+    transition: background .25s, color .25s;
   }
-  #avatar {
-    width: 44px; height: 44px; border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #ffd3e0, #f08aa6 45%, #7b5cff 100%);
-    box-shadow: 0 0 0 0 rgba(143, 162, 255, .5);
-    flex: none;
-    margin-right: 4px;
-  }
-  #avatar.thinking { animation: breathe 1.6s ease-in-out infinite; }
-  #avatar.speaking { animation: talk .7s ease-in-out infinite; }
-  @keyframes breathe {
-    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(143, 162, 255, .45); }
-    50% { transform: scale(1.08); box-shadow: 0 0 0 10px rgba(143, 162, 255, 0); }
-  }
-  @keyframes talk {
-    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(240, 138, 166, .5); }
-    50% { transform: scale(1.14); box-shadow: 0 0 0 12px rgba(240, 138, 166, 0); }
-  }
-  .title { flex: 1; min-width: 0; }
-  header h1 { font-size: 17px; font-weight: 600; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #status { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pill #status { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; flex: none; }
+  body[data-state="listening"] .pill { background: rgba(183, 148, 255, .16); color: var(--listen); }
+  body[data-state="thinking"] .pill { background: rgba(255, 200, 87, .14); color: var(--think); }
+  body[data-state="speaking"] .pill { background: rgba(110, 168, 255, .16); color: var(--speak); }
+  body[data-state="error"] .pill { background: rgba(255, 120, 120, .15); color: #ff8f8f; }
+  .wave { display: none; align-items: center; gap: 2px; height: 12px; }
+  body[data-state="listening"] .wave, body[data-state="speaking"] .wave { display: inline-flex; }
+  .wave i { width: 3px; height: 100%; background: currentColor; border-radius: 2px; transform: scaleY(.3); animation: bar .9s ease-in-out infinite; }
+  .wave i:nth-child(2) { animation-delay: .15s; }
+  .wave i:nth-child(3) { animation-delay: .3s; }
+  .wave i:nth-child(4) { animation-delay: .45s; }
+  @keyframes bar { 0%, 100% { transform: scaleY(.25); } 50% { transform: scaleY(1); } }
 
+  /* ----- avatar card ----- */
+  #stage {
+    position: relative; flex: none; overflow: hidden;
+    height: clamp(230px, 40vh, 360px);
+    border-radius: 26px;
+    border: 1px solid rgba(255, 255, 255, .07);
+    background: radial-gradient(circle at 50% 30%, #3a3f7a 0%, #1a2048 55%, #11162f 100%);
+    display: flex; align-items: center; justify-content: center;
+    transition: height .25s ease;
+  }
+  #stageMsg {
+    position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 12px; padding: 20px;
+    text-align: center; color: var(--muted); font-size: 14px; line-height: 1.4; white-space: pre-line;
+  }
+  #stageMsg[hidden] { display: none; }
+  #retryBtn { background: rgba(167, 123, 216, .28); color: var(--text); height: 38px; padding: 0 18px; }
+  #retryBtn[hidden] { display: none; }
+  #stage3d { position: absolute; inset: 0; }
+  #stage3d[hidden] { display: none; }
+  #stage3d canvas { width: 100%; height: 100%; display: block; touch-action: none; }
+  .rings { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .25s; z-index: 2; }
+  body[data-state="listening"] .rings { opacity: 1; box-shadow: inset 0 0 0 2px rgba(183, 148, 255, .6), inset 0 0 46px rgba(183, 148, 255, .38); animation: ringPulse 1.5s ease-in-out infinite; }
+  body[data-state="thinking"] .rings { opacity: 1; box-shadow: inset 0 0 0 1px rgba(255, 200, 87, .4), inset 0 0 30px rgba(255, 200, 87, .16); }
+  body[data-state="speaking"] .rings { opacity: 1; box-shadow: inset 0 0 0 1px rgba(110, 168, 255, .45), inset 0 0 34px rgba(110, 168, 255, .24); }
+  @keyframes ringPulse { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
+  #credit { position: absolute; left: 12px; bottom: 8px; z-index: 3; font-size: 10px; opacity: .6; color: var(--text); pointer-events: none; }
+  #credit[hidden] { display: none; }
+  .tools { position: absolute; top: 10px; right: 10px; z-index: 3; display: flex; gap: 8px; }
   .hbtn {
-    border: 0;
-    background: var(--ink);
-    color: var(--text);
-    border-radius: 18px;
-    height: 36px;
-    min-width: 36px;
-    padding: 0 12px;
-    font: inherit;
-    font-size: 13px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    flex: none;
+    border: 0; background: rgba(14, 19, 39, .58); color: var(--text);
+    border-radius: 18px; height: 36px; min-width: 36px; padding: 0 11px;
+    font: inherit; font-size: 13px; font-weight: 600;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: none;
+    -webkit-tap-highlight-color: transparent;
   }
+  body.kbd-open #stage, body.chat-expanded #stage { height: clamp(120px, 20vh, 170px); }
 
-  main {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    scroll-behavior: smooth;
-  }
-  .msg {
-    max-width: 82%;
-    padding: 10px 14px;
-    border-radius: 18px;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
+  /* ----- intro ----- */
+  #intro { flex: none; text-align: center; padding: 0 0 2px; }
+  #intro h2 { margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -.01em; }
+  #intro p { margin: 2px 0 0; font-size: 14.5px; color: var(--muted); }
+  body.has-chat #intro, body.kbd-open #intro, body.chat-expanded #intro { display: none; }
+
+  /* ----- conversation card ----- */
+  #chatCard { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--panel); border-radius: 26px; padding: 14px 12px 12px; margin-bottom: 12px; }
+  .chathead { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 6px 8px; }
+  .chathead h2 { margin: 0; font-size: 19px; font-weight: 700; }
+  .link { border: 0; background: transparent; color: var(--accent); font: inherit; font-size: 14px; font-weight: 600; padding: 6px 8px; border-radius: 12px; }
+  main#list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 2px 4px 10px; scroll-behavior: smooth; }
+  .msg { max-width: 86%; padding: 11px 15px; border-radius: 18px; font-size: 15.5px; line-height: 1.4; white-space: pre-wrap; overflow-wrap: anywhere; }
   .msg.ai { align-self: flex-start; background: var(--bubble-ai); border-bottom-left-radius: 6px; }
   .msg.me { align-self: flex-end; background: var(--bubble-me); color: var(--text-me); border-bottom-right-radius: 6px; }
-  .msg.typing { color: var(--muted); }
+  .msg.typing { color: var(--muted); animation: blinkText 1.2s ease-in-out infinite; }
+  @keyframes blinkText { 0%, 100% { opacity: .5; } 50% { opacity: 1; } }
 
-  form.bar {
-    display: flex;
-    gap: 8px;
-    padding: 10px 12px;
-    background: var(--panel);
-    align-items: center;
-  }
-  #mic {
-    flex: none;
-    width: 44px; height: 44px;
-    border: 0;
-    border-radius: 50%;
-    background: var(--ink);
-    color: var(--text);
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  #mic.on { background: var(--bubble-me); color: var(--text-me); animation: talk .9s ease-in-out infinite; }
+  form.bar { display: flex; gap: 8px; align-items: center; }
+  #form { flex: none; padding-top: 4px; }
   #input, #memInput {
-    flex: 1;
-    min-width: 0;
-    border: 0;
-    border-radius: 22px;
-    padding: 12px 16px;
-    background: var(--ink);
-    color: var(--text);
-    font: inherit;
+    flex: 1; min-width: 0; border: 0; border-radius: 24px; padding: 13px 17px;
+    background: var(--ink); color: var(--text); font: inherit; font-size: 15.5px;
   }
   #input::placeholder, #memInput::placeholder { color: var(--muted); }
-  #send, #memAdd {
-    border: 0;
-    border-radius: 22px;
-    height: 44px;
-    padding: 0 20px;
-    background: var(--bubble-me);
-    color: var(--text-me);
-    font: inherit;
-    font-weight: 600;
+  #mic, #send {
+    flex: none; width: 46px; height: 46px; border: 0; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent; color: var(--accent);
+    -webkit-tap-highlight-color: transparent;
   }
-  #send:disabled { opacity: .5; }
-  #input:focus-visible, #memInput:focus-visible, #send:focus-visible, #memAdd:focus-visible,
-  #mic:focus-visible, .hbtn:focus-visible, .del:focus-visible, #memClear:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+  #send { background: var(--accent); color: #fff; }
+  #send:disabled { opacity: .45; }
+  #mic.on { background: rgba(183, 148, 255, .22); color: #fff; animation: micPulse 1.2s ease-out infinite; }
+  @keyframes micPulse { 0% { box-shadow: 0 0 0 0 rgba(183, 148, 255, .6); } 100% { box-shadow: 0 0 0 14px rgba(183, 148, 255, 0); } }
+  #memAdd { border: 0; border-radius: 22px; height: 44px; padding: 0 20px; background: var(--accent); color: #fff; font: inherit; font-weight: 600; }
+  #input:focus-visible, #memInput:focus-visible, #send:focus-visible, #memAdd:focus-visible, #mic:focus-visible,
+  .hbtn:focus-visible, .del:focus-visible, #memClear:focus-visible, .link:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
 
   /* Memories panel */
   .panel {
@@ -200,131 +200,72 @@
     padding: 12px;
   }
 
-  #stage {
-    position: relative;
-    flex: none;
-    height: min(27vh, 196px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: radial-gradient(circle at 50% 45%, rgba(143, 162, 255, .16), transparent 62%), var(--ink);
-  }
-  #stage[hidden] { display: none; }
-  #face { height: 100%; width: auto; max-width: 100%; display: block; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-  .stagebtn { position: absolute; top: 8px; height: 32px; font-size: 13px; padding: 0 12px; background: rgba(35, 44, 82, .9); }
-  #lookBtn { left: 12px; }
-  #stageHide { right: 12px; }
-  body.stage-on #avatar { display: none; }
-  #avatar { cursor: pointer; }
-  #stage3d { position: absolute; inset: 0; }
-  #stage3d[hidden] { display: none; }
-  #stage3d canvas { width: 100%; height: 100%; display: block; touch-action: none; }
-  header .hbtn { padding: 0 10px; }
-  #credit { position: absolute; left: 12px; top: 10px; max-width: 150px; font-size: 11px; line-height: 1.25; color: var(--muted); pointer-events: none; }
-  #credit[hidden] { display: none; }
-  body.mode-3d #stage { height: min(32vh, 250px); }
-  /* Full-screen view: the avatar fills the screen and the chat floats over her */
+
+  .panel .hbtn { background: var(--ink); }
+
+  /* ----- full-screen view: the avatar fills the screen and the chat floats over her ----- */
+  body.view-full { padding-left: 0; padding-right: 0; gap: 0; }
   body.view-full #stage {
-    position: fixed; top: 0; left: 0; right: 0;
-    height: var(--fullH, 100%);
-    z-index: 0;
+    position: fixed; top: 0; left: 0; right: 0; height: var(--fullH, 100%);
+    border-radius: 0; border: 0; z-index: 0;
     background: radial-gradient(circle at 50% 36%, #3b4285 0%, #232a56 48%, #131833 100%);
   }
-  body.view-full header { position: relative; z-index: 2; background: transparent; }
-  body.view-full .title h1 { display: none; }
-  body.view-full #status { color: #e3e7ff; text-shadow: 0 1px 4px rgba(0, 0, 0, .7); }
-  body.view-full .hbtn { background: rgba(27, 35, 64, .62); }
-  body.view-full .stagebtn { display: none; }
-  body.view-full #credit { position: fixed; top: calc(env(safe-area-inset-top, 0px) + 66px); left: 14px; z-index: 1; }
-  body.view-full main {
-    position: relative; z-index: 2;
-    flex: 0 1 auto; margin-top: auto;
-    max-height: min(46vh, 380px);
-    padding-top: 28px;
+  body.view-full #topbar { position: relative; z-index: 2; padding: 10px 14px 0; }
+  body.view-full .tools { top: calc(env(safe-area-inset-top, 0px) + 60px); }
+  body.view-full #credit { bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 66px); }
+  body.view-full #intro, body.view-full .chathead { display: none; }
+  body.view-full #chatCard { position: relative; z-index: 2; flex: 0 1 auto; margin: auto 0 0; background: transparent; padding: 0 12px 8px; border-radius: 0; }
+  body.view-full main#list {
+    flex: none; max-height: min(44vh, 360px); padding-top: 28px;
     -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 30%);
     mask-image: linear-gradient(to bottom, transparent 0, #000 30%);
   }
-  body.view-full .msg.ai { background: rgba(46, 56, 107, .68); }
-  body.view-full .msg.me { background: rgba(240, 138, 166, .8); }
-  body.view-full form { position: relative; z-index: 2; background: rgba(27, 35, 64, .5); }
-  body.view-full #input, body.view-full #mic { background: rgba(70, 80, 140, .7); }
-  @media (max-height: 640px) { body:not(.view-full) #stage { display: none; } body:not(.view-full).stage-on #avatar { display: block; } }
+  body.view-full .msg.ai { background: rgba(49, 58, 102, .7); }
+  body.view-full .msg.me { background: rgba(123, 79, 143, .82); }
+  body.view-full #input { background: rgba(60, 70, 128, .72); }
+  body.view-full #form { background: rgba(14, 19, 39, .35); border-radius: 30px; padding: 6px; }
 
   @media (prefers-reduced-motion: reduce) {
-    #avatar.thinking, #avatar.speaking, #mic.on { animation: none; }
-    main { scroll-behavior: auto; }
+    #mic.on, .rings, .wave i, .msg.typing { animation: none; }
+    main#list { scroll-behavior: auto; }
+    #stage { transition: none; }
   }
 </style>
 </head>
 <body>
-  <header>
-    <div id="avatar" aria-hidden="true"></div>
-    <div class="title">
+  <header id="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3l1.6 4.4L16 9l-4.4 1.6L10 15l-1.6-4.4L4 9l4.4-1.6z"/><path d="M18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8z"/></svg>
       <h1 id="name"></h1>
-      <div id="status">Online</div>
     </div>
-    <button id="viewBtn" class="hbtn" type="button" aria-label="Change the avatar view">Full</button>
-    <button id="voiceBtn" class="hbtn" type="button" aria-label="Change voice">Voice</button>
-    <button id="memBtn" class="hbtn" type="button" aria-label="Open memories">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>
-      <span id="memCount">0</span>
-    </button>
-    <button id="muteBtn" class="hbtn" type="button" aria-label="Mute or unmute her voice"></button>
+    <div class="pill" id="pill"><span class="dot"></span><span id="status">Online</span><span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div>
   </header>
 
-  <div id="stage" hidden>
-    <svg id="face" viewBox="0 0 200 220" role="img" aria-label="Your companion. Tap to change her look.">
-      <defs>
-        <radialGradient id="bgGrad" cx="50%" cy="40%" r="62%">
-          <stop id="bgA" offset="0" stop-color="#3a3f7a"/>
-          <stop id="bgB" offset="1" stop-color="#1b2340"/>
-        </radialGradient>
-        <clipPath id="clipRound"><circle cx="100" cy="112" r="98"/></clipPath>
-      </defs>
-      <circle cx="100" cy="112" r="98" fill="url(#bgGrad)"/>
-      <g clip-path="url(#clipRound)">
-        <g id="figure">
-          <path id="hairBack" d="M44 100 C34 40 68 14 100 14 C132 14 166 40 156 100 C164 152 154 198 146 226 L54 226 C46 198 36 152 44 100 Z"/>
-          <path id="outfit" d="M26 226 C30 184 62 166 100 166 C138 166 170 184 174 226 Z"/>
-          <rect id="neck" x="88" y="138" width="24" height="34" rx="10"/>
-          <g id="head">
-            <ellipse id="skin" cx="100" cy="98" rx="50" ry="56"/>
-            <path id="hairFront" d="M50 94 C42 48 72 28 100 28 C128 28 158 48 150 94 C142 76 128 62 108 56 C96 72 72 84 50 94 Z"/>
-            <circle id="cheekL" cx="68" cy="114" r="9" fill="#ff7a9c" opacity=".3"/>
-            <circle id="cheekR" cx="132" cy="114" r="9" fill="#ff7a9c" opacity=".3"/>
-            <path id="browL" d="M63 82 Q76 75 89 80" fill="none" stroke-width="3.5" stroke-linecap="round"/>
-            <path id="browR" d="M111 80 Q124 75 137 82" fill="none" stroke-width="3.5" stroke-linecap="round"/>
-            <g id="eyeL">
-              <ellipse cx="76" cy="97" rx="9.5" ry="10.5" fill="#fff"/>
-              <circle id="pupilL" cx="76" cy="98" r="6.2" fill="#2a1d2e"/>
-              <circle cx="78.6" cy="94.6" r="2.1" fill="#fff"/>
-            </g>
-            <g id="eyeR">
-              <ellipse cx="124" cy="97" rx="9.5" ry="10.5" fill="#fff"/>
-              <circle id="pupilR" cx="124" cy="98" r="6.2" fill="#2a1d2e"/>
-              <circle cx="126.6" cy="94.6" r="2.1" fill="#fff"/>
-            </g>
-            <path d="M98 108 Q100 114 103 111" fill="none" stroke="rgba(60,20,30,.28)" stroke-width="2" stroke-linecap="round"/>
-            <path id="mouth" fill="#7a2a3c" stroke="#7a2a3c" stroke-width="2" stroke-linejoin="round"/>
-          </g>
-        </g>
-      </g>
-    </svg>
+  <section id="stage">
     <div id="stage3d" hidden></div>
+    <div id="stageMsg" hidden><p id="stageMsgText"></p><button id="retryBtn" class="hbtn" type="button" hidden>Retry</button></div>
+    <div class="rings" aria-hidden="true"></div>
     <div id="credit" hidden>Avatar “Aura” by Mrhunt394 YT</div>
-    <button id="lookBtn" class="hbtn stagebtn" type="button" aria-label="Change her look">Look</button>
-    <button id="stageHide" class="hbtn stagebtn" type="button" aria-label="Hide the avatar">Hide</button>
-  </div>
+    <div class="tools">
+      <button id="viewBtn" class="hbtn" type="button" aria-label="Change the avatar view">Card</button>
+      <button id="voiceBtn" class="hbtn" type="button" aria-label="Change voice"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 10v4"/></svg></button>
+      <button id="memBtn" class="hbtn" type="button" aria-label="Open memories"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg><span id="memCount">0</span></button>
+      <button id="muteBtn" class="hbtn" type="button" aria-label="Mute or unmute her voice"></button>
+    </div>
+  </section>
+  <div id="avatar" hidden></div>
 
-  <main id="list" aria-live="polite"></main>
+  <section id="intro"><h2 id="introName"></h2><p>Your personal AI companion</p></section>
 
-  <form id="form" class="bar" autocomplete="off">
-    <button id="mic" type="button" aria-label="Speak">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
-    </button>
-    <input id="input" type="text" placeholder="Message" aria-label="Message" enterkeyhint="send" />
-    <button id="send" type="submit">Send</button>
-  </form>
+  <section id="chatCard">
+    <div class="chathead"><h2>Conversation</h2><button id="expandBtn" class="link" type="button">Expand</button></div>
+    <main id="list" aria-live="polite"></main>
+    <form id="form" class="bar" autocomplete="off">
+      <input id="input" type="text" placeholder="Message AURA…" aria-label="Message" enterkeyhint="send" />
+      <button id="mic" type="button" aria-label="Speak"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></button>
+      <button id="send" type="submit" aria-label="Send"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3L10 14"/><path d="M21 3l-7 18-4-7-7-4z"/></svg></button>
+    </form>
+  </section>
 
   <section id="memPanel" class="panel" role="dialog" aria-modal="true" aria-label="Memories" hidden>
     <div class="panel-head">
@@ -343,8 +284,8 @@
   import { Capacitor, registerPlugin } from "@capacitor/core";
 
   // ---------- Settings: change these ----------
-  const COMPANION_NAME = "Companion";
-  const GREETING = "Hi, I’m here. What’s on your mind?";
+  const COMPANION_NAME = "AURA";
+  const GREETING = "Hello! How can I help you today?";
   const STORAGE_KEY = "companion_chat_v1";
   const MEMORY_KEY = "companion_memories_v1";
   const MAX_MEMORIES = 100;
@@ -370,6 +311,7 @@
   const avatar = document.getElementById("avatar");
   const statusEl = document.getElementById("status");
   document.getElementById("name").textContent = COMPANION_NAME;
+  document.getElementById("introName").textContent = "I’m " + COMPANION_NAME;
   window.addEventListener("error", function (ev) { statusEl.textContent = "Error: " + (ev.message || "unknown"); });
 
   // Native plugins (only exist inside the installed Android app)
@@ -420,10 +362,12 @@
     list.scrollTop = list.scrollHeight;
     return el;
   }
+  function paintChatState() { document.body.classList.toggle("has-chat", messages.length > 1); }
   function add(role, text) {
     messages.push({ role: role, text: text, t: Date.now() });
     save();
     bubble(role, text);
+    paintChatState();
   }
 
   // ---------- Memories ----------
@@ -549,200 +493,6 @@
     } catch (e) { voiceIdx = []; }
   }
 
-  // ---------- Animated avatar ----------
-  const LOOKS = [
-    { name: "Sunset", skin: "#f6d3bd", hair: "#3b2233", outfit: "#f08aa6", bgA: "#4a3a7e", bgB: "#1b2340" },
-    { name: "Ocean",  skin: "#ebc4a4", hair: "#1f2b49", outfit: "#5b8def", bgA: "#2f5a8a", bgB: "#18223f" },
-    { name: "Forest", skin: "#cf9f7e", hair: "#2a1a13", outfit: "#4fb48a", bgA: "#2f6b5c", bgB: "#16263a" },
-    { name: "Berry",  skin: "#f3d6c6", hair: "#6c2c52", outfit: "#a35be8", bgA: "#6a3a8e", bgB: "#1d1f45" },
-    { name: "Golden", skin: "#b9825c", hair: "#16110f", outfit: "#f0b44a", bgA: "#8a6a2f", bgB: "#241f33" }
-  ];
-
-  const Face2D = (function () {
-    const ids = ["figure", "eyeL", "eyeR", "pupilL", "pupilR", "browL", "browR", "mouth", "cheekL", "cheekR",
-      "skin", "neck", "hairBack", "hairFront", "outfit", "bgA", "bgB"];
-    const el = {};
-    ids.forEach(function (id) { el[id] = document.getElementById(id); });
-    const stage = document.getElementById("stage");
-    const faceSvg = document.getElementById("face");
-    const lookBtn = document.getElementById("lookBtn");
-    const hideBtn = document.getElementById("stageHide");
-    const calm = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
-
-    let state = "idle";
-    let talking = false, talkStart = 0, visemes = [], visTotal = 1, visIdx = 0;
-    let lastElapsed = 0;
-    const cur = { open: 0, smile: 0.4, browL: 0, browR: 0, tilt: 0, gx: 0, gy: 0, bob: 0 };
-    let nextBlink = 1400, blinkStart = -1;
-    let nextGlance = 2500, glanceX = 0, glanceY = 0;
-    let smileBoost = 0;
-    let raf = 0, lastTs = 0;
-    let lookIdx = 0;
-
-    function buildVisemes(text) {
-      const out = [];
-      const s = String(text).replace(/\s+/g, " ").slice(0, 700);
-      let total = 0;
-      for (let i = 0; i < s.length; i++) {
-        const c = s[i].toLowerCase();
-        let o = 0.3, ms = 62;
-        if (c === "a") o = 0.95;
-        else if (c === "o") o = 0.8;
-        else if (c === "e") o = 0.6;
-        else if (c === "u") o = 0.6;
-        else if (c === "i") o = 0.45;
-        else if (c === "b" || c === "m" || c === "p") o = 0.04;
-        else if (c === " ") { o = 0.12; ms = 40; }
-        else if (c === "." || c === "!" || c === "?") { o = 0; ms = 280; }
-        else if (c === "," || c === ";" || c === ":") { o = 0; ms = 140; }
-        else if (/[0-9]/.test(c)) o = 0.45;
-        else if (c.charCodeAt(0) > 127) { o = 0.25 + (c.charCodeAt(0) % 5) * 0.1; ms = 70; }
-        total += ms;
-        out.push({ o: o, end: total });
-      }
-      visTotal = Math.max(total, 1);
-      return out;
-    }
-
-    function mouthPath(open, smile) {
-      const cx = 100, cy = 128;
-      const w = 13 + smile * 3 + open * 1.5;
-      const cornerY = cy - smile * 4 + open * 1;
-      const upperY = cy - 2 - smile - open * 3;
-      const lowerY = cy + 3 + open * 17 + Math.max(smile, 0) * 4;
-      return "M" + (cx - w).toFixed(1) + " " + cornerY.toFixed(1) +
-        " Q" + cx + " " + upperY.toFixed(1) + " " + (cx + w).toFixed(1) + " " + cornerY.toFixed(1) +
-        " Q" + cx + " " + lowerY.toFixed(1) + " " + (cx - w).toFixed(1) + " " + cornerY.toFixed(1) + " Z";
-    }
-
-    function applyLook() {
-      const L = LOOKS[lookIdx % LOOKS.length];
-      el.skin.setAttribute("fill", L.skin);
-      el.neck.setAttribute("fill", L.skin);
-      el.hairBack.setAttribute("fill", L.hair);
-      el.hairFront.setAttribute("fill", L.hair);
-      el.outfit.setAttribute("fill", L.outfit);
-      el.browL.setAttribute("stroke", L.hair);
-      el.browR.setAttribute("stroke", L.hair);
-      el.bgA.setAttribute("stop-color", L.bgA);
-      el.bgB.setAttribute("stop-color", L.bgB);
-    }
-
-    function nextLook() {
-      lookIdx = (lookIdx + 1) % LOOKS.length;
-      lsSet("companion_look", String(lookIdx));
-      applyLook();
-      smileBoost = 1;
-      blinkStart = performance.now();
-      setStatus("Look: " + LOOKS[lookIdx].name, 1500);
-    }
-
-    function targets(t) {
-      // returns the pose this state is aiming for
-      const g = { smile: 0.45, browL: 0, browR: 0, tilt: 0, gx: glanceX, gy: glanceY };
-      if (state === "listening") {
-        g.smile = 0.25; g.browL = -4; g.browR = -4; g.tilt = calm ? 0 : -5; g.gx = 0; g.gy = 0;
-      } else if (state === "thinking") {
-        g.smile = -0.05; g.browL = -5; g.browR = -1; g.gx = 4; g.gy = -4; g.tilt = calm ? 0 : 3;
-      } else if (state === "speaking") {
-        g.smile = 0.35; g.browL = -1; g.browR = -1; g.gx = 0; g.gy = 0;
-        g.tilt = calm ? 0 : Math.sin(t * 3.1) * 1.6;
-      } else {
-        g.tilt = calm ? 0 : Math.sin(t * 0.7) * 1.2;
-      }
-      g.smile += smileBoost * 0.5;
-      return g;
-    }
-
-    function frame(ts) {
-      raf = requestAnimationFrame(frame);
-      const dt = Math.min((ts - (lastTs || ts)) / 1000, 0.1);
-      lastTs = ts;
-      const t = ts / 1000;
-      const kFast = 1 - Math.exp(-dt * 24);
-      const kSoft = 1 - Math.exp(-dt * 8);
-
-      // glances while idle
-      if (ts > nextGlance) {
-        nextGlance = ts + 2000 + Math.random() * 3000;
-        glanceX = state === "idle" ? (Math.random() * 6 - 3) : 0;
-        glanceY = state === "idle" ? (Math.random() * 3 - 1.5) : 0;
-      }
-      // blinking
-      if (blinkStart < 0 && ts > nextBlink) { blinkStart = ts; nextBlink = ts + 2200 + Math.random() * 3300; }
-      let eyeScale = 1;
-      if (blinkStart >= 0) {
-        const p = (ts - blinkStart) / 150;
-        if (p >= 1) blinkStart = -1; else eyeScale = 1 - 0.92 * Math.sin(Math.PI * p);
-      }
-
-      // mouth opening from the words being spoken
-      let openT = 0;
-      if (talking && visemes.length) {
-        const elapsed = (performance.now() - talkStart) % (visTotal + 300);
-        if (elapsed < lastElapsed) visIdx = 0;
-        lastElapsed = elapsed;
-        while (visIdx < visemes.length - 1 && visemes[visIdx].end < elapsed) visIdx++;
-        openT = elapsed > visTotal ? 0 : visemes[visIdx].o;
-      }
-      cur.open += (openT - cur.open) * kFast;
-
-      const g = targets(t);
-      smileBoost *= Math.exp(-dt * 1.6);
-      cur.smile += (g.smile - cur.smile) * kSoft;
-      cur.browL += (g.browL - cur.browL) * kSoft;
-      cur.browR += (g.browR - cur.browR) * kSoft;
-      cur.tilt += (g.tilt - cur.tilt) * kSoft;
-      cur.gx += (g.gx - cur.gx) * kSoft;
-      cur.gy += (g.gy - cur.gy) * kSoft;
-      const bobT = calm ? 0 : Math.sin(t * 1.5) * 1.2 + (talking ? cur.open * 1.2 : 0);
-      cur.bob += (bobT - cur.bob) * kSoft;
-
-      el.mouth.setAttribute("d", mouthPath(cur.open, cur.smile));
-      el.figure.setAttribute("transform", "translate(0 " + cur.bob.toFixed(2) + ") rotate(" + cur.tilt.toFixed(2) + " 100 150)");
-      el.eyeL.style.transform = "scaleY(" + eyeScale.toFixed(3) + ")";
-      el.eyeR.style.transform = "scaleY(" + eyeScale.toFixed(3) + ")";
-      el.pupilL.setAttribute("transform", "translate(" + cur.gx.toFixed(2) + " " + cur.gy.toFixed(2) + ")");
-      el.pupilR.setAttribute("transform", "translate(" + cur.gx.toFixed(2) + " " + cur.gy.toFixed(2) + ")");
-      el.browL.setAttribute("transform", "translate(0 " + cur.browL.toFixed(2) + ")");
-      el.browR.setAttribute("transform", "translate(0 " + cur.browR.toFixed(2) + ")");
-      const blush = 0.28 + Math.max(cur.smile, 0) * 0.25;
-      el.cheekL.setAttribute("opacity", blush.toFixed(2));
-      el.cheekR.setAttribute("opacity", blush.toFixed(2));
-    }
-
-    function start() { if (!raf) { lastTs = 0; raf = requestAnimationFrame(frame); } }
-    function stop() { if (raf) { cancelAnimationFrame(raf); raf = 0; } }
-
-    function showStage(on) {
-      stage.hidden = !on;
-      document.body.classList.toggle("stage-on", on);
-      lsSet("companion_stage", on ? "1" : "0");
-      Face.applyRun();
-    }
-
-    return {
-      init: function () {
-        el.eyeL.style.transformBox = "fill-box"; el.eyeL.style.transformOrigin = "center";
-        el.eyeR.style.transformBox = "fill-box"; el.eyeR.style.transformOrigin = "center";
-        lookIdx = parseInt(lsGet("companion_look") || "0", 10) || 0;
-        applyLook();
-        showStage(lsGet("companion_stage") !== "0");
-        faceSvg.addEventListener("click", nextLook);
-        lookBtn.addEventListener("click", nextLook);
-        hideBtn.addEventListener("click", function () { showStage(false); });
-        avatar.addEventListener("click", function () { showStage(true); });
-      },
-      run: function (on) { if (on) start(); else stop(); },
-      show: function (on) { showStage(on); },
-      setState: function (s) { state = s; if (s !== "speaking") talking = false; },
-      speak: function (text) { visemes = buildVisemes(text); visIdx = 0; lastElapsed = 0; talkStart = performance.now(); talking = true; state = "speaking"; },
-      stopTalking: function () { talking = false; if (state === "speaking") state = "idle"; },
-      endListening: function () { if (state === "listening") state = "idle"; },
-      endThinking: function () { if (state === "thinking") state = "idle"; }
-    };
-  })();
-
   // ---------- 3D avatar (VRM model) ----------
   const AVATAR_URL = "avatar.vrm";
   // How she looks in each mood (0 to 1). Change these numbers to taste.
@@ -760,7 +510,8 @@
     const calm = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
     let ready = false, loading = null;
     let THREE = null, renderer = null, scene = null, camera = null, vrm = null, lookTarget = null;
-    let headBone = null, neckBone = null, chestBone = null;
+    let headBone = null, neckBone = null, chestBone = null, upperChestBone = null, spineBone = null;
+    let lean = 0, mood = "neutral", moodUntil = 0, qualityDrop = 0, perfAcc = 0, perfN = 0;
     let headY = 1.45;
     let framing = "bust", bodyTop = 1.66, bodyBottom = 0, hipsBone = null, curPR = 0;
     let state = "idle";
@@ -816,6 +567,29 @@
       }
     }
 
+    function poseElbows() {
+      const lL = bone("leftLowerArm"), rL = bone("rightLowerArm"), lH = bone("leftHand");
+      if (!lL || !rL) return;
+      const e = 0.22;
+      lL.rotation.y = -e;
+      rL.rotation.y = e;
+      vrm.scene.updateMatrixWorld(true);
+      if (lH) {
+        const hp = new THREE.Vector3(), ep = new THREE.Vector3();
+        lH.getWorldPosition(hp);
+        lL.getWorldPosition(ep);
+        // the hand should move slightly forward; if it went backward, flip the bend
+        if (hp.z < ep.z - 0.002) { lL.rotation.y = e; rL.rotation.y = -e; }
+      }
+    }
+
+    function detectMood(text) {
+      const t = String(text).toLowerCase();
+      if (/(sorry|sad|unfortunately|stormy|bad news|miss you|difficult)/.test(t)) return "sad";
+      if (/(!|😊|😄|glad|happy|great|awesome|wonderful|lovely|love|nice|congrat|fun)/.test(t)) return "happy";
+      return "neutral";
+    }
+
     function setExpr(name, v) {
       const em = vrm && vrm.expressionManager;
       if (em) em.setValue(name, v);
@@ -829,6 +603,12 @@
       const t = ts / 1000;
       const kFast = 1 - Math.exp(-dt * 22);
       const kSoft = 1 - Math.exp(-dt * 7);
+      // if the phone struggles, quietly lower the picture sharpness
+      perfAcc += dt; perfN++;
+      if (perfN >= 90) {
+        if (perfAcc / perfN > 0.05 && qualityDrop < 0.75) { qualityDrop += 0.25; applyFraming(); }
+        perfAcc = 0; perfN = 0;
+      }
 
       // vowel shapes for the words being spoken
       const tv = {};
@@ -846,11 +626,15 @@
       let blink = 0;
       if (blinkStart >= 0) {
         const p = (ts - blinkStart) / 170;
-        if (p >= 1) blinkStart = -1; else blink = Math.sin(Math.PI * p);
+        if (p >= 1) { blinkStart = -1; if (Math.random() < 0.18) nextBlink = ts + 230; } else blink = Math.sin(Math.PI * p);
       }
 
       // expressions
-      const base = EXPR_BASE[state] || EXPR_BASE.idle;
+      const base = Object.assign({}, EXPR_BASE[state] || EXPR_BASE.idle);
+      if (ts < moodUntil || state === "speaking") {
+        if (mood === "happy") { base.happy = 0.3; base.relaxed = 0.15; }
+        else if (mood === "sad") { base.sad = 0.3; base.relaxed = 0; }
+      }
       EXPR_ALL.forEach(function (n) {
         let target = 0;
         if (n === "blink") { cur.blink = blink; setExpr("blink", blink); return; }
@@ -867,7 +651,7 @@
       else if (state === "thinking") { nod = -0.09; turn = 0.16; tilt = 0.04; gx = -0.3; gy = 0.25; }
       else if (state === "speaking") { nod = Math.sin(t * 3.0) * 0.025 + cur.aa * 0.03; tilt = Math.sin(t * 1.7) * 0.02; }
       else {
-        tilt = Math.sin(t * 0.7) * 0.03; nod = Math.sin(t * 0.5) * 0.015;
+        tilt = Math.sin(t * 0.7) * 0.03; nod = Math.sin(t * 0.5) * 0.015; turn = Math.sin(t * 0.23) * 0.06;
         if (ts > nextGlance) { nextGlance = ts + 2000 + Math.random() * 3000; glanceX = Math.random() * 0.3 - 0.15; glanceY = Math.random() * 0.1 - 0.05; }
         gx = glanceX; gy = glanceY;
       }
@@ -879,8 +663,14 @@
       pose.gy += (gy - pose.gy) * kSoft;
       if (headBone) headBone.rotation.set(pose.nod, pose.turn, pose.tilt);
       if (neckBone) neckBone.rotation.set(pose.nod * 0.4, pose.turn * 0.4, pose.tilt * 0.4);
-      if (chestBone && !calm) chestBone.rotation.set(Math.sin(t * 1.5) * 0.012, 0, 0);
-      if (hipsBone && !calm) hipsBone.rotation.set(0, Math.sin(t * 0.45) * 0.025, 0);
+      lean += ((state === "listening" ? 0.04 : 0) - lean) * kSoft;
+      if (!calm) {
+        const bre = Math.sin(t * 1.5);
+        if (chestBone) chestBone.rotation.set(bre * 0.014 + lean, 0, 0);
+        if (upperChestBone) upperChestBone.rotation.set(bre * 0.01, 0, 0);
+        if (spineBone) spineBone.rotation.set(0, 0, -Math.sin(t * 0.3) * 0.012);
+        if (hipsBone) hipsBone.rotation.set(0, Math.sin(t * 0.45) * 0.025, Math.sin(t * 0.3) * 0.02);
+      }
       if (lookTarget) lookTarget.position.set(pose.gx, headY + pose.gy, camera.position.z);
 
       vrm.update(dt);
@@ -889,7 +679,7 @@
 
     function applyFraming() {
       if (!camera) return;
-      const pr = Math.min(window.devicePixelRatio || 1, framing === "full" ? 1.5 : 2);
+      const pr = Math.max(1, Math.min(window.devicePixelRatio || 1, framing === "full" ? 1.5 : 2) - qualityDrop);
       if (renderer && pr !== curPR) { curPR = pr; renderer.setPixelRatio(pr); }
       const tanH = Math.tan((camera.fov * Math.PI / 180) / 2);
       let cy, d;
@@ -897,6 +687,9 @@
         const h = (bodyTop - bodyBottom) * 1.14;
         cy = (bodyTop + bodyBottom) / 2 + 0.02;
         d = Math.max(h / (2 * tanH), 0.85 / (2 * tanH * camera.aspect));
+      } else if (framing === "half") {
+        cy = headY - 0.23;
+        d = Math.max(1.05 / (2 * tanH), 0.75 / (2 * tanH * camera.aspect));
       } else {
         cy = headY + 0.03;
         d = 1.0;
@@ -955,7 +748,10 @@
       headBone = bone("head");
       neckBone = bone("neck");
       chestBone = bone("chest") || bone("spine");
+      upperChestBone = bone("upperChest");
+      spineBone = bone("spine");
       poseArms();
+      poseElbows();
       vrm.scene.updateMatrixWorld(true);
       if (headBone) {
         const hp = new THREE.Vector3();
@@ -990,90 +786,121 @@
         else if (!on && raf) { cancelAnimationFrame(raf); raf = 0; }
       },
       setState: function (s) { state = s; if (s !== "speaking") talking = false; },
-      speak: function (text) { visemes = buildVisemes(text); visIdx = 0; lastElapsed = 0; talkStart = performance.now(); talking = true; state = "speaking"; },
-      stopTalking: function () { talking = false; if (state === "speaking") state = "idle"; },
+      speak: function (text) { visemes = buildVisemes(text); visIdx = 0; lastElapsed = 0; talkStart = performance.now(); talking = true; state = "speaking"; mood = detectMood(text); },
+      stopTalking: function () { talking = false; if (state === "speaking") { state = "idle"; moodUntil = performance.now() + 1500; } },
       endListening: function () { if (state === "listening") state = "idle"; },
       endThinking: function () { if (state === "thinking") state = "idle"; }
     };
     return api;
   })();
 
-  // ---------- Avatar views: Full screen 3D, 3D at the top, or the 2D face ----------
+  // ---------- Avatar views: Card (default) or Full screen ----------
   const Face = (function () {
-    const stageEl = document.getElementById("stage");
-    const faceSvg = document.getElementById("face");
     const stage3d = document.getElementById("stage3d");
-    const lookBtn = document.getElementById("lookBtn");
     const viewBtn = document.getElementById("viewBtn");
     const credit = document.getElementById("credit");
-    const VIEWS = ["full", "top", "2d"];
-    const LABEL = { full: "Full", top: "Top", "2d": "2D" };
-    let view = "2d";
+    const expandBtn = document.getElementById("expandBtn");
+    const stageMsg = document.getElementById("stageMsg");
+    const stageMsgText = document.getElementById("stageMsgText");
+    const retryBtn = document.getElementById("retryBtn");
+    const VIEWS = ["card", "full"];
+    const LABEL = { card: "Card", full: "Full" };
+    let view = "card";
     let maxH = 0, lastW = 0;
+    let needReload = false;
 
-    // keep the full-screen avatar the same size when the keyboard opens
+    function setUi(s) { document.body.dataset.state = s; }
+
+    function showMsg(text, retry) {
+      stageMsg.hidden = !text;
+      stageMsgText.textContent = text || "";
+      retryBtn.hidden = !retry;
+    }
+
+    function updateFraming() {
+      if (view === "full") Face3D.setFraming("full");
+      else {
+        const b = document.body.classList;
+        Face3D.setFraming(b.contains("kbd-open") || b.contains("chat-expanded") ? "bust" : "half");
+      }
+    }
+
+    // keep the full-screen avatar the same size when the keyboard opens, and notice the keyboard
     function lockStageHeight() {
       const w = window.innerWidth, h = window.innerHeight;
       if (w !== lastW) { maxH = 0; lastW = w; }
       maxH = Math.max(maxH, h);
       document.documentElement.style.setProperty("--fullH", maxH + "px");
+      const kbd = maxH - h > 140;
+      if (kbd !== document.body.classList.contains("kbd-open")) {
+        document.body.classList.toggle("kbd-open", kbd);
+        updateFraming();
+      }
     }
 
-    function applyRun() {
-      const vis = !stageEl.hidden && !document.hidden;
-      Face2D.run(vis && view === "2d");
-      Face3D.run(vis && view !== "2d");
-    }
+    function applyRun() { Face3D.run(!document.hidden); }
 
     function paint() {
-      const is3 = view !== "2d", full = view === "full";
-      faceSvg.style.display = is3 ? "none" : "";
-      stage3d.hidden = !is3;
-      credit.hidden = !is3;
-      lookBtn.style.display = is3 ? "none" : "";
+      const ok = Face3D.isReady() && !needReload;
+      stage3d.hidden = !ok;
+      credit.hidden = !ok;
       viewBtn.textContent = LABEL[view];
-      document.body.classList.toggle("mode-3d", is3);
-      document.body.classList.toggle("view-full", full);
-      if (full) Face2D.show(true);
-      Face3D.setFraming(full ? "full" : "bust");
+      document.body.classList.toggle("mode-3d", ok);
+      document.body.classList.toggle("view-full", view === "full");
+      document.body.classList.toggle("view-card", view === "card");
+      updateFraming();
     }
 
-    async function setView(v, remember) {
-      if (v !== "2d") {
-        try {
-          setStatus("Loading Aura…");
-          await Face3D.load();
-          setStatus("Online");
-        } catch (e) {
-          console.error(e);
-          setStatus("3D not available: " + (e && e.message ? e.message : String(e)), 7000);
-          v = "2d";
-        }
+    async function loadAvatar() {
+      if (needReload) { location.reload(); return; }
+      showMsg("Loading Aura…", false);
+      setStatus("Loading Aura…");
+      try {
+        await Face3D.load();
+        showMsg("", false);
+        setStatus("Online");
+      } catch (e) {
+        console.error(e);
+        showMsg("Aura couldn’t load.\n" + (e && e.message ? e.message : String(e)), true);
+        setStatus("Avatar not loaded", 6000);
+        setUi("error");
+        setTimeout(function () { if (document.body.dataset.state === "error") setUi("idle"); }, 6000);
       }
-      view = v;
-      if (remember) lsSet("companion_view", v);
       paint();
       applyRun();
     }
 
     return {
       applyRun: applyRun,
+      updateFraming: updateFraming,
       init: function () {
+        setUi("idle");
         lockStageHeight();
         window.addEventListener("resize", lockStageHeight);
-        Face2D.init();
-        Face3D.onLost = function () { setStatus("3D stopped, using the 2D face", 5000); setView("2d", false); };
-        viewBtn.addEventListener("click", function () { setView(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length], true); });
+        Face3D.onLost = function () { needReload = true; showMsg("The 3D view stopped.", true); paint(); };
+        retryBtn.addEventListener("click", loadAvatar);
+        viewBtn.addEventListener("click", function () {
+          view = VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length];
+          lsSet("companion_view2", view);
+          paint();
+          applyRun();
+        });
+        expandBtn.addEventListener("click", function () {
+          const on = document.body.classList.toggle("chat-expanded");
+          expandBtn.textContent = on ? "Collapse" : "Expand";
+          updateFraming();
+        });
         document.addEventListener("visibilitychange", applyRun);
-        const old = lsGet("companion_avatar");
-        const pref = lsGet("companion_view") || (old === "2d" ? "2d" : "full");
-        setView(VIEWS.indexOf(pref) >= 0 ? pref : "full", false);
+        const pref = lsGet("companion_view2");
+        view = VIEWS.indexOf(pref) >= 0 ? pref : "card";
+        paint();
+        loadAvatar();
       },
-      setState: function (s) { Face2D.setState(s); Face3D.setState(s); },
-      speak: function (t) { Face2D.speak(t); Face3D.speak(t); },
-      stopTalking: function () { Face2D.stopTalking(); Face3D.stopTalking(); },
-      endListening: function () { Face2D.endListening(); Face3D.endListening(); },
-      endThinking: function () { Face2D.endThinking(); Face3D.endThinking(); }
+      setState: function (s) { Face3D.setState(s); setUi(s); },
+      speak: function (t) { Face3D.speak(t); setUi("speaking"); },
+      stopTalking: function () { Face3D.stopTalking(); if (document.body.dataset.state === "speaking") setUi("idle"); },
+      endListening: function () { Face3D.endListening(); if (document.body.dataset.state === "listening") setUi("idle"); },
+      endThinking: function () { Face3D.endThinking(); if (document.body.dataset.state === "thinking") setUi("idle"); }
     };
   })();
 
@@ -1090,6 +917,7 @@
     if (muted && !force) return;
     avatar.classList.add("speaking");
     Face.speak(text);
+    setStatus("Speaking…");
     try {
       if (TTS) {
         const opts = { text: text, lang: SPEECH_LANG, rate: 1.0, pitch: 1.1, volume: 1.0 };
@@ -1108,6 +936,7 @@
     } finally {
       avatar.classList.remove("speaking");
       Face.stopTalking();
+      if (statusEl.textContent === "Speaking…") setStatus("Online");
     }
   }
 
@@ -1222,6 +1051,7 @@
     save();
   }
   messages.forEach(function (m) { bubble(m.role, m.text); });
+  paintChatState();
 </script>
 </body>
 </html>
