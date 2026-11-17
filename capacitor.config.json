@@ -1,5 +1,11 @@
 {
   "appId": "com.aura.app",
   "appName": "AURA",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "FirebaseAuthentication": {
+      "skipNativeAuth": false,
+      "providers": ["google.com"]
+    }
+  }
 }
