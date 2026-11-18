@@ -1,1 +1,39 @@
-
+{
+  "project_info": {
+    "project_number": "226831231157",
+    "project_id": "aura-ai-companion-d2609",
+    "storage_bucket": "aura-ai-companion-d2609.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:226831231157:android:8b3efb52d9f3bdbec0f6fc",
+        "android_client_info": {
+          "package_name": "com.aura.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "226831231157-8mkvrbjois4o6eqqc6gf9h8fmjigqogm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB7WNBfqJ1l5B3DwYXHGxBQjGbb8gExezY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "226831231157-8mkvrbjois4o6eqqc6gf9h8fmjigqogm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
