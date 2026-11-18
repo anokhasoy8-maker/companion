@@ -1,6 +1,6 @@
 {
   "appId": "com.aura.staging",
-  "appName": "AURA",
+  "appName": "AURA Staging",
   "webDir": "dist",
   "plugins": {
     "FirebaseAuthentication": {
