@@ -203,6 +203,27 @@
 
   .panel .hbtn { background: var(--ink); }
 
+  /* ----- Google sign-in gate ----- */
+  #authGate {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px; background: rgba(14, 19, 39, .97);
+  }
+  #authGate[hidden] { display: none; }
+  .auth-card {
+    width: min(100%, 380px); padding: 28px 22px; text-align: center;
+    border: 1px solid rgba(255,255,255,.1); border-radius: 24px;
+    background: var(--panel); box-shadow: 0 18px 60px rgba(0,0,0,.35);
+  }
+  .auth-card h2 { margin: 0 0 8px; font-size: 25px; }
+  .auth-card p { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
+  #googleSignIn {
+    width: 100%; min-height: 48px; border: 0; border-radius: 24px;
+    background: var(--accent); color: #fff; font: inherit; font-weight: 700;
+  }
+  #googleSignIn:disabled { opacity: .55; }
+  #authMessage { min-height: 20px; margin-top: 14px; color: var(--muted); font-size: 13px; }
+
   /* ----- full-screen view: the avatar fills the screen and the chat floats over her ----- */
   body.view-full { padding-left: 0; padding-right: 0; gap: 0; }
   body.view-full #stage {
@@ -233,6 +254,14 @@
 </style>
 </head>
 <body>
+  <section id="authGate" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <div class="auth-card">
+      <h2 id="authTitle">Welcome to AURA</h2>
+      <p>Sign in with your authorized Google account to continue.</p>
+      <button id="googleSignIn" type="button">Continue with Google</button>
+      <div id="authMessage" aria-live="polite">Checking sign-in…</div>
+    </div>
+  </section>
   <header id="topbar">
     <div class="brand">
       <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3l1.6 4.4L16 9l-4.4 1.6L10 15l-1.6-4.4L4 9l4.4-1.6z"/><path d="M18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8z"/></svg>
@@ -282,6 +311,7 @@
 
 <script type="module">
   import { Capacitor, registerPlugin } from "@capacitor/core";
+  import { FirebaseAuthentication } from "@capacitor-firebase/authentication";
 
   // ---------- Settings: change these ----------
   const COMPANION_NAME = "AURA";
@@ -291,7 +321,71 @@
   const MAX_MEMORIES = 100;
   const WORKER_URL = "https://companion-api-staging.anokhasoy8.workers.dev";
   const SPEECH_LANG = "en-IN";   // try "hi-IN" for Hindi, "en-US" for US English
+  const AUTHORIZED_EMAIL = "anokhasoy8@gmail.com";
   // --------------------------------------------
+
+  const authGate = document.getElementById("authGate");
+  const googleSignInBtn = document.getElementById("googleSignIn");
+  const authMessage = document.getElementById("authMessage");
+  let authenticatedEmail = null;
+
+  function showAuthMessage(message) { authMessage.textContent = message; }
+
+  async function firebaseAuthHeaders() {
+    const current = await FirebaseAuthentication.getCurrentUser();
+    const user = current && current.user;
+    if (!user || String(user.email || "").toLowerCase() !== AUTHORIZED_EMAIL) {
+      throw new Error("Please sign in with your authorized Google account.");
+    }
+    const result = await FirebaseAuthentication.getIdToken();
+    if (!result || !result.token) throw new Error("Could not obtain a Firebase sign-in token.");
+    return {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + result.token
+    };
+  }
+
+  async function checkFirebaseSignIn() {
+    authGate.hidden = false;
+    try {
+      const result = await FirebaseAuthentication.getCurrentUser();
+      const user = result && result.user;
+      if (user && String(user.email || "").toLowerCase() === AUTHORIZED_EMAIL) {
+        await firebaseAuthHeaders();
+        authenticatedEmail = user.email;
+        authGate.hidden = true;
+        showAuthMessage("");
+      } else {
+        if (user) { try { await FirebaseAuthentication.signOut(); } catch (e) {} }
+        authenticatedEmail = null;
+        showAuthMessage("Please continue with your authorized Google account.");
+      }
+    } catch (error) {
+      authenticatedEmail = null;
+      showAuthMessage("Sign in with Google to use AURA.");
+    }
+  }
+
+  googleSignInBtn.addEventListener("click", async function () {
+    googleSignInBtn.disabled = true;
+    showAuthMessage("Opening Google sign-in…");
+    try {
+      const result = await FirebaseAuthentication.signInWithGoogle();
+      const user = result && result.user;
+      if (!user || String(user.email || "").toLowerCase() !== AUTHORIZED_EMAIL) {
+        try { await FirebaseAuthentication.signOut(); } catch (e) {}
+        throw new Error("This Google account is not authorized to use AURA.");
+      }
+      await firebaseAuthHeaders();
+      authenticatedEmail = user.email;
+      authGate.hidden = true;
+      setStatus("Signed in", 2000);
+    } catch (error) {
+      showAuthMessage(error && error.message ? error.message : "Google sign-in failed. Please try again.");
+    } finally {
+      googleSignInBtn.disabled = false;
+    }
+  });
 
   const list = document.getElementById("list");
   const form = document.getElementById("form");
@@ -437,7 +531,7 @@
     try {
       const res = await fetch(WORKER_URL, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await firebaseAuthHeaders(),
         body: JSON.stringify({
           mode: "extract",
           messages: messages.slice(-6).map(function (m) { return { role: m.role, text: m.text }; }),
@@ -994,7 +1088,7 @@
     const recent = history.slice(-20).map(function (m) { return { role: m.role, text: m.text }; });
     const res = await fetch(WORKER_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: await firebaseAuthHeaders(),
       body: JSON.stringify({
         messages: recent,
         memories: memories.map(function (m) { return m.text; })
@@ -1042,6 +1136,7 @@
   });
 
   load();
+  checkFirebaseSignIn();
   paintMute();
   paintMemCount();
   loadVoices();
